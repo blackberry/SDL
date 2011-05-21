@@ -1,0 +1,355 @@
+/*
+    SDL - Simple DirectMedia Layer
+    Copyright (C) 1997-2009 Sam Lantinga
+
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public
+    License as published by the Free Software Foundation; either
+    version 2.1 of the License, or (at your option) any later version.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with this library; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+    Sam Lantinga
+    slouken@libsdl.org
+*/
+#include "SDL_config.h"
+
+/* Dummy SDL video driver implementation; this is just enough to make an
+ *  SDL-based application THINK it's got a working video driver, for
+ *  applications that call SDL_Init(SDL_INIT_VIDEO) when they don't need it,
+ *  and also for use as a collection of stubs when porting SDL to a new
+ *  platform for which you haven't yet written a valid video driver.
+ *
+ * This is also a great way to determine bottlenecks: if you think that SDL
+ *  is a performance problem for a given platform, enable this driver, and
+ *  then see if your application runs faster without video overhead.
+ *
+ * Initial work by Ryan C. Gordon (icculus@icculus.org). A good portion
+ *  of this was cut-and-pasted from Stephane Peter's work in the AAlib
+ *  SDL video driver.  Renamed to "PLAYBOOK" by Sam Lantinga.
+ */
+
+#include "SDL_video.h"
+#include "SDL_mouse.h"
+#include "../SDL_sysvideo.h"
+#include "../SDL_pixels_c.h"
+#include "../../events/SDL_events_c.h"
+
+#include "SDL_playbookvideo.h"
+#include "SDL_playbookevents_c.h"
+#include "SDL_playbookmouse_c.h"
+
+#include <string.h>
+#include <errno.h>
+
+#define PLAYBOOKVID_DRIVER_NAME "playbook"
+
+screen_context_t m_screenContext;
+screen_event_t m_screenEvent;
+screen_window_t m_screenWindow;
+screen_buffer_t m_frontBuffer;
+SDL_Rect *SDL_modelist[SDL_NUMMODES+1];
+
+/* Initialization/Query functions */
+static int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat);
+static SDL_Rect **PLAYBOOK_ListModes(_THIS, SDL_PixelFormat *format, Uint32 flags);
+static SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current, int width, int height, int bpp, Uint32 flags);
+static int PLAYBOOK_SetColors(_THIS, int firstcolor, int ncolors, SDL_Color *colors);
+static void PLAYBOOK_VideoQuit(_THIS);
+
+/* Hardware surface functions */
+static int PLAYBOOK_AllocHWSurface(_THIS, SDL_Surface *surface);
+static int PLAYBOOK_LockHWSurface(_THIS, SDL_Surface *surface);
+static void PLAYBOOK_UnlockHWSurface(_THIS, SDL_Surface *surface);
+static void PLAYBOOK_FreeHWSurface(_THIS, SDL_Surface *surface);
+
+/* etc. */
+static void PLAYBOOK_UpdateRects(_THIS, int numrects, SDL_Rect *rects);
+
+/* PLAYBOOK driver bootstrap functions */
+
+static int PLAYBOOK_Available(void)
+{
+	return 1;
+}
+
+static void PLAYBOOK_DeleteDevice(SDL_VideoDevice *device)
+{
+	SDL_free(device->hidden);
+	SDL_free(device);
+}
+
+static SDL_VideoDevice *PLAYBOOK_CreateDevice(int devindex)
+{
+	SDL_VideoDevice *device;
+
+	/* Initialize all variables that we clean on shutdown */
+	device = (SDL_VideoDevice *)SDL_malloc(sizeof(SDL_VideoDevice));
+	if ( device ) {
+		SDL_memset(device, 0, (sizeof *device));
+		device->hidden = (struct SDL_PrivateVideoData *)
+				SDL_malloc((sizeof *device->hidden));
+	}
+	if ( (device == NULL) || (device->hidden == NULL) ) {
+		SDL_OutOfMemory();
+		if ( device ) {
+			SDL_free(device);
+		}
+		return(0);
+	}
+	SDL_memset(device->hidden, 0, (sizeof *device->hidden));
+
+	/* Set the function pointers */
+	device->VideoInit = PLAYBOOK_VideoInit;
+	device->ListModes = PLAYBOOK_ListModes;
+	device->SetVideoMode = PLAYBOOK_SetVideoMode;
+	device->CreateYUVOverlay = NULL;
+	device->SetColors = PLAYBOOK_SetColors;
+	device->UpdateRects = PLAYBOOK_UpdateRects;
+	device->VideoQuit = PLAYBOOK_VideoQuit;
+	device->AllocHWSurface = PLAYBOOK_AllocHWSurface;
+	device->CheckHWBlit = NULL;
+	device->FillHWRect = NULL;
+	device->SetHWColorKey = NULL;
+	device->SetHWAlpha = NULL;
+	device->LockHWSurface = PLAYBOOK_LockHWSurface;
+	device->UnlockHWSurface = PLAYBOOK_UnlockHWSurface;
+	device->FlipHWSurface = NULL;
+	device->FreeHWSurface = PLAYBOOK_FreeHWSurface;
+	device->SetCaption = NULL;
+	device->SetIcon = NULL;
+	device->IconifyWindow = NULL;
+	device->GrabInput = NULL;
+	device->GetWMInfo = NULL;
+	device->InitOSKeymap = PLAYBOOK_InitOSKeymap;
+	device->PumpEvents = PLAYBOOK_PumpEvents;
+
+	device->free = PLAYBOOK_DeleteDevice;
+
+	return device;
+}
+
+VideoBootStrap PLAYBOOK_bootstrap = {
+	PLAYBOOKVID_DRIVER_NAME, "SDL dummy video driver",
+	PLAYBOOK_Available, PLAYBOOK_CreateDevice
+};
+
+
+int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
+{
+	/*
+	fprintf(stderr, "WARNING: You are using the SDL dummy video driver!\n");
+	*/
+	int i;
+	int rc = screen_create_context(&m_screenContext, 0);
+	if (rc) {
+		SDL_SetError("Cannot create screen context: %s", strerror(errno));
+		return -1;
+	}
+
+	rc = screen_create_event(&m_screenEvent);
+	if (rc) {
+		SDL_SetError("Cannot create event object: %s", strerror(errno));
+		screen_destroy_context(m_screenContext);
+		return -1;
+	}
+
+	for ( i=0; i<SDL_NUMMODES; ++i ) {
+		SDL_modelist[i] = SDL_malloc(sizeof(SDL_Rect));
+		SDL_modelist[i]->x = SDL_modelist[i]->y = 0;
+	}
+
+	/* Modes sorted largest to smallest */
+	SDL_modelist[0]->w = 1024; SDL_modelist[0]->h = 600;
+	SDL_modelist[1] = NULL;
+
+	/* Determine the screen depth (use default 32-bit depth) */
+	vformat->BitsPerPixel = 32;
+	vformat->BytesPerPixel = 4;
+	this->info.hw_available = 0;
+	// TODO: this->info.wm_available = 1;
+	this->info.current_w = 1024;
+	this->info.current_h = 600;
+
+	/* We're done! */
+	return(0);
+}
+
+SDL_Rect **PLAYBOOK_ListModes(_THIS, SDL_PixelFormat *format, Uint32 flags)
+{
+	if (flags & SDL_FULLSCREEN ) {
+		return SDL_modelist;
+	} else {
+		return (SDL_Rect **) -1;
+	}
+}
+
+SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
+				int width, int height, int bpp, Uint32 flags)
+{
+	screen_window_t screenWindow;
+	int rc = screen_create_window(&screenWindow, m_screenContext);
+	if (rc) {
+		SDL_SetError("Cannot create window: %s", strerror(errno));
+		return NULL;
+	}
+
+	// No effect
+	if ( ! SDL_ReallocFormat(current, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0) ) {
+		screen_destroy_window(screenWindow);
+		return(NULL);
+	}
+
+	/*
+	 * FIXME: More properties needed
+	SCREEN_PROPERTY_USAGE
+	SCREEN_PROPERTY_SWAP_INTERVAL
+	 */
+	int position[2] = {0, 0};
+	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_POSITION, position);
+	if (rc) {
+		SDL_SetError("Cannot position window: %s", strerror(errno));
+		screen_destroy_window(screenWindow);
+		return NULL;
+	}
+
+	int size[2] = {width, height};
+	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_SIZE, size);
+	if (rc) {
+		SDL_SetError("Cannot resize window: %s", strerror(errno));
+		screen_destroy_window(screenWindow);
+		return NULL;
+	}
+
+	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_BUFFER_SIZE, size);
+	if (rc) {
+		SDL_SetError("Cannot resize window buffer: %s", strerror(errno));
+		screen_destroy_window(screenWindow);
+		return NULL;
+	}
+
+	int format = SCREEN_FORMAT_RGBA8888; // FIXME: Allow configurable format
+	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_FORMAT, &format);
+	if (rc) {
+		SDL_SetError("Cannot set window format: %s", strerror(errno));
+		screen_destroy_window(screenWindow);
+		return NULL;
+	}
+
+	int usage = SCREEN_USAGE_NATIVE | SCREEN_USAGE_WRITE; // FIXME: GL needs other usage
+	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_USAGE, &usage);
+	if (rc) {
+		SDL_SetError("Cannot set window usage: %s", strerror(errno));
+		screen_destroy_window(screenWindow);
+		return NULL;
+	}
+
+	int bufferCount = 1; // FIXME: Permit double-buffered windows
+	rc = screen_create_window_buffers(screenWindow, bufferCount);
+	if (rc) {
+		SDL_SetError("Cannot create window buffer: %s", strerror(errno));
+		return NULL;
+	}
+
+	screen_buffer_t windowBuffer[bufferCount];
+	rc = screen_get_window_property_pv(screenWindow,
+			SCREEN_PROPERTY_RENDER_BUFFERS, (void**)&windowBuffer);
+	if (rc) {
+		SDL_SetError("Cannot get window render buffers: %s", strerror(errno));
+		return NULL;
+	}
+
+	rc = screen_get_buffer_property_pv(windowBuffer[0], SCREEN_PROPERTY_POINTER, &(current->pixels));
+	if (rc) {
+		SDL_SetError("Cannot get buffer pointer: %s", strerror(errno));
+		return NULL;
+	}
+
+	int screenPitch;
+	rc = screen_get_buffer_property_iv(windowBuffer[0], SCREEN_PROPERTY_STRIDE, &screenPitch);
+	if (rc) {
+		SDL_SetError("Cannot get stride: %s", strerror(errno));
+		return NULL;
+	}
+
+	m_frontBuffer = windowBuffer[0];
+
+	current->flags &= ~SDL_RESIZABLE; /* no resize for Direct Context */
+	current->flags |= SDL_FULLSCREEN;
+	current->w = width;
+	current->h = height;
+	current->pitch = (int)screenPitch;
+	SDL_SetAlpha(current, SDL_SRCALPHA, 0xff);
+
+
+	// No effect:
+//	current->flags |= SDL_SRCALPHA;
+//	current->format->alpha = 0xff;
+	//SDL_SetAlpha(current, SDL_SRCALPHA, 1);
+
+	m_screenWindow = screenWindow; // FIXME: Figure out how to store SDL window handle in user data.
+	return current;
+}
+
+/* We don't actually allow hardware surfaces other than the main one */
+static int PLAYBOOK_AllocHWSurface(_THIS, SDL_Surface *surface)
+{
+	return(-1);
+}
+static void PLAYBOOK_FreeHWSurface(_THIS, SDL_Surface *surface)
+{
+	return;
+}
+
+/* We need to wait for vertical retrace on page flipped displays */
+static int PLAYBOOK_LockHWSurface(_THIS, SDL_Surface *surface)
+{
+	return(0);
+}
+
+static void PLAYBOOK_UnlockHWSurface(_THIS, SDL_Surface *surface)
+{
+	return;
+}
+
+static void PLAYBOOK_UpdateRects(_THIS, int numrects, SDL_Rect *rects)
+{
+	static int dirtyRects[256*4];
+	int index = 0, i = 0;
+	for (i=0; i<numrects; i++) {
+		dirtyRects[index] = rects[i].x;
+		dirtyRects[index+1] = rects[i].y;
+		dirtyRects[index+2] = rects[i].x + rects[i].w;
+		dirtyRects[index+3] = rects[i].y + rects[i].h;
+		index += 4;
+	}
+
+	if (m_screenWindow && m_frontBuffer)
+		screen_post_window(m_screenWindow, m_frontBuffer, numrects, dirtyRects, 0);
+}
+
+int PLAYBOOK_SetColors(_THIS, int firstcolor, int ncolors, SDL_Color *colors)
+{
+	/* do nothing of note. */
+	return(1);
+}
+
+/* Note:  If we are terminated, this could be called in the middle of
+   another SDL video routine -- notably UpdateRects.
+*/
+void PLAYBOOK_VideoQuit(_THIS)
+{
+	if (m_screenWindow) {
+		screen_destroy_window_buffers(m_screenWindow);
+		screen_destroy_window(m_screenWindow);
+	}
+	screen_destroy_event(m_screenEvent);
+	screen_destroy_context(m_screenContext);
+}
