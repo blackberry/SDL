@@ -109,8 +109,8 @@
 /* Enable the stub joystick driver (src/joystick/dummy/\*.c) */
 #define SDL_JOYSTICK_DISABLED	1
 
-/* Enable the stub shared object loader (src/loadso/dummy/\*.c) */
-#define SDL_LOADSO_DISABLED	1
+/* Enable the dlopen shared object loader (src/loadso/dlopen/\*.c) */
+#define SDL_LOADSO_DLOPEN	1
 
 /* Enable the stub thread support (src/thread/pthread/\*.c) */
 #define SDL_THREAD_PTHREAD	1
