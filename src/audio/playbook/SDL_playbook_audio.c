@@ -36,8 +36,7 @@
 #include "../SDL_audiodev_c.h"
 #include "SDL_playbook_audio.h"
 
-#define ACTUALLY_DO_DISK
-
+//#define ACTUALLY_DO_DISK
 
 /* The tag name used by Anthony's asound audio */
 #define PLAYBOOK_AUD_DRIVER_NAME         "anhu"
