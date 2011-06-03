@@ -100,8 +100,8 @@
 #define HAVE_SYSCONF	1
 #define HAVE_CLOCK_GETTIME 1
 
-/* Enable the dummy audio driver (src/audio/nto/\*.c) */
-#define SDL_AUDIO_DRIVER_NTO	1
+/* Enable the dummy audio driver (src/audio/playbook/\*.c) */
+#define SDL_AUDIO_DRIVER_PLAYBOOK	1
 
 /* Enable the stub cdrom driver (src/cdrom/dummy/\*.c) */
 #define SDL_CDROM_QNX	1
