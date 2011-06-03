@@ -163,88 +163,8 @@ int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 		return -1;
 	}
 
-	screen_window_t screenWindow;
-	rc = screen_create_window(&screenWindow, m_screenContext);
-	if (rc) {
-		SDL_SetError("Cannot create window: %s", strerror(errno));
-		return -1;
-	}
-
-	/*
-	 * FIXME: More properties needed
-	SCREEN_PROPERTY_USAGE
-	SCREEN_PROPERTY_SWAP_INTERVAL
-	 */
-	int position[2] = {0, 0};
-	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_POSITION, position);
-	if (rc) {
-		SDL_SetError("Cannot position window: %s", strerror(errno));
-		screen_destroy_window(screenWindow);
-		return -1;
-	}
-
-	int size[2] = {1024, 600};
-	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_SIZE, size);
-	if (rc) {
-		SDL_SetError("Cannot resize window: %s", strerror(errno));
-		screen_destroy_window(screenWindow);
-		return -1;
-	}
-
-	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_BUFFER_SIZE, size);
-	if (rc) {
-		SDL_SetError("Cannot resize window buffer: %s", strerror(errno));
-		screen_destroy_window(screenWindow);
-		return -1;
-	}
-
-	int format = SCREEN_FORMAT_RGBA8888; // FIXME: Allow configurable format
-	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_FORMAT, &format);
-	if (rc) {
-		SDL_SetError("Cannot set window format: %s", strerror(errno));
-		screen_destroy_window(screenWindow);
-		return -1;
-	}
-
-	int usage = SCREEN_USAGE_NATIVE | SCREEN_USAGE_WRITE; // FIXME: GL needs other usage
-	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_USAGE, &usage);
-	if (rc) {
-		SDL_SetError("Cannot set window usage: %s", strerror(errno));
-		screen_destroy_window(screenWindow);
-		return -1;
-	}
-
-	int bufferCount = 1; // FIXME: Permit double-buffered windows
-	rc = screen_create_window_buffers(screenWindow, bufferCount);
-	if (rc) {
-		SDL_SetError("Cannot create window buffer: %s", strerror(errno));
-		return -1;
-	}
-
-	screen_buffer_t windowBuffer[bufferCount];
-	rc = screen_get_window_property_pv(screenWindow,
-			SCREEN_PROPERTY_RENDER_BUFFERS, (void**)&windowBuffer);
-	if (rc) {
-		SDL_SetError("Cannot get window render buffers: %s", strerror(errno));
-		return -1;
-	}
-
-	rc = screen_get_buffer_property_pv(windowBuffer[0], SCREEN_PROPERTY_POINTER, &m_pixels);
-	if (rc) {
-		SDL_SetError("Cannot get buffer pointer: %s", strerror(errno));
-		return -1;
-	}
-
-	rc = screen_get_buffer_property_iv(windowBuffer[0], SCREEN_PROPERTY_STRIDE, &m_pitch);
-	if (rc) {
-		SDL_SetError("Cannot get stride: %s", strerror(errno));
-		return -1;
-	} else {
-		fprintf(stderr, "Pitch is %d\n", m_pitch);
-	}
-
-	m_frontBuffer = windowBuffer[0];
-	m_screenWindow = screenWindow;
+	m_screenWindow = 0;
+	m_surface = 0;
 
 	for ( i=0; i<SDL_NUMMODES; ++i ) {
 		SDL_modelist[i] = SDL_malloc(sizeof(SDL_Rect));
@@ -253,7 +173,8 @@ int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 
 	/* Modes sorted largest to smallest */
 	SDL_modelist[0]->w = 1024; SDL_modelist[0]->h = 600;
-	SDL_modelist[1] = NULL;
+	SDL_modelist[1]->w = 800; SDL_modelist[1]->h = 576;
+	SDL_modelist[2] = NULL;
 
 	/* Determine the screen depth (use default 32-bit depth) */
 	vformat->BitsPerPixel = 32;
@@ -273,7 +194,7 @@ SDL_Rect **PLAYBOOK_ListModes(_THIS, SDL_PixelFormat *format, Uint32 flags)
 	if (flags & SDL_FULLSCREEN ) {
 		return SDL_modelist;
 	} else {
-		return (SDL_Rect **) -1;
+		return SDL_modelist; // Consider changing this!
 	}
 }
 
@@ -297,6 +218,91 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 		m_buffer = 0;
 		SDL_SetError("Couldn't realloc pixel format");
 		return NULL;
+	}
+
+	{
+			screen_window_t screenWindow;
+			int rc = screen_create_window(&screenWindow, m_screenContext);
+			if (rc) {
+				SDL_SetError("Cannot create window: %s", strerror(errno));
+				return NULL;
+			}
+
+			/*
+			 * FIXME: More properties needed
+			SCREEN_PROPERTY_USAGE
+			SCREEN_PROPERTY_SWAP_INTERVAL
+			 */
+			int position[2] = {0, 0};
+			rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_POSITION, position);
+			if (rc) {
+				SDL_SetError("Cannot position window: %s", strerror(errno));
+				screen_destroy_window(screenWindow);
+				return NULL;
+			}
+
+			int size[2] = {width, height};
+			rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_SIZE, size);
+			if (rc) {
+				SDL_SetError("Cannot resize window: %s", strerror(errno));
+				screen_destroy_window(screenWindow);
+				return NULL;
+			}
+
+			rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_BUFFER_SIZE, size);
+			if (rc) {
+				SDL_SetError("Cannot resize window buffer: %s", strerror(errno));
+				screen_destroy_window(screenWindow);
+				return NULL;
+			}
+
+			int format = SCREEN_FORMAT_RGBA8888; // FIXME: Allow configurable format
+			rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_FORMAT, &format);
+			if (rc) {
+				SDL_SetError("Cannot set window format: %s", strerror(errno));
+				screen_destroy_window(screenWindow);
+				return NULL;
+			}
+
+			int usage = SCREEN_USAGE_NATIVE | SCREEN_USAGE_WRITE; // FIXME: GL needs other usage
+			rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_USAGE, &usage);
+			if (rc) {
+				SDL_SetError("Cannot set window usage: %s", strerror(errno));
+				screen_destroy_window(screenWindow);
+				return NULL;
+			}
+
+			int bufferCount = 1; // FIXME: Permit double-buffered windows
+			rc = screen_create_window_buffers(screenWindow, bufferCount);
+			if (rc) {
+				SDL_SetError("Cannot create window buffer: %s", strerror(errno));
+				return NULL;
+			}
+
+			screen_buffer_t windowBuffer[bufferCount];
+			rc = screen_get_window_property_pv(screenWindow,
+					SCREEN_PROPERTY_RENDER_BUFFERS, (void**)&windowBuffer);
+			if (rc) {
+				SDL_SetError("Cannot get window render buffers: %s", strerror(errno));
+				return NULL;
+			}
+
+			rc = screen_get_buffer_property_pv(windowBuffer[0], SCREEN_PROPERTY_POINTER, &m_pixels);
+			if (rc) {
+				SDL_SetError("Cannot get buffer pointer: %s", strerror(errno));
+				return NULL;
+			}
+
+			rc = screen_get_buffer_property_iv(windowBuffer[0], SCREEN_PROPERTY_STRIDE, &m_pitch);
+			if (rc) {
+				SDL_SetError("Cannot get stride: %s", strerror(errno));
+				return NULL;
+			} else {
+				fprintf(stderr, "Pitch is %d\n", m_pitch);
+			}
+
+			m_frontBuffer = windowBuffer[0];
+			m_screenWindow = screenWindow;
 	}
 
 	current->flags &= ~SDL_RESIZABLE; /* no resize for Direct Context */
@@ -401,10 +407,10 @@ int PLAYBOOK_SetColors(_THIS, int firstcolor, int ncolors, SDL_Color *colors)
 // FIXME: Fix up cleanup process
 void PLAYBOOK_VideoQuit(_THIS)
 {
-	if (m_buffer) {
-		SDL_free(m_buffer);
-		m_buffer = 0;
-	}
+//	if (m_buffer) {
+//		SDL_free(m_buffer);
+//		m_buffer = 0;
+//	}
 	if (m_screenWindow) {
 		screen_destroy_window_buffers(m_screenWindow);
 		screen_destroy_window(m_screenWindow);

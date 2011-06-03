@@ -30,7 +30,7 @@
 /* Hidden "this" pointer for the video functions */
 #define _THIS	SDL_VideoDevice *this
 
-#define SDL_NUMMODES 1
+#define SDL_NUMMODES 2
 
 extern screen_context_t m_screenContext;
 extern screen_event_t m_screenEvent;
