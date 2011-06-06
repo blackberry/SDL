@@ -38,8 +38,8 @@
 
 static void DEBUG_doNothing (FILE * fd, char *format, ...) {
       va_list ap;
-	  va_start(ap, format);
-	  va_end(ap);
+      va_start(ap, format);
+      va_end(ap);
 }
 
 
@@ -65,61 +65,61 @@ static void PLAYBOOK_AUD_CloseAudio(_THIS);
 #ifdef ACTUALLY_DO_DISK
 static const char *PLAYBOOK_AUD_GetOutputFilename(void)
 {
-	return "/sdlaudio.raw";
+    return "/sdlaudio.raw";
 }
 #endif
 /* Audio driver bootstrap functions */
 static int PLAYBOOK_AUD_Available(void)
 {
-	return(1);
+    return(1);
 }
 
 
 static void PLAYBOOK_AUD_DeleteDevice(SDL_AudioDevice *device)
 {
-	SDL_free(device->hidden);
-	SDL_free(device);
+    SDL_free(device->hidden);
+    SDL_free(device);
 }
 
 static SDL_AudioDevice *PLAYBOOK_AUD_CreateDevice(int devindex)
 {
-	SDL_AudioDevice *this;
-	const char *envr;
+    SDL_AudioDevice *this;
+    const char *envr;
 
-	/* Initialize all variables that we clean on shutdown */
-	this = (SDL_AudioDevice *)SDL_malloc(sizeof(SDL_AudioDevice));
-	if ( this ) {
-		SDL_memset(this, 0, (sizeof *this));
-		this->hidden = (struct SDL_PrivateAudioData *)
-				SDL_malloc((sizeof *this->hidden));
-	}
+    /* Initialize all variables that we clean on shutdown */
+    this = (SDL_AudioDevice *)SDL_malloc(sizeof(SDL_AudioDevice));
+    if ( this ) {
+        SDL_memset(this, 0, (sizeof *this));
+        this->hidden = (struct SDL_PrivateAudioData *)
+                SDL_malloc((sizeof *this->hidden));
+    }
 
-	if ( (this == NULL) || (this->hidden == NULL) ) {
-		SDL_OutOfMemory();
-		if ( this ) {
-			SDL_free(this);
-		}
-		return(0);
-	}
+    if ( (this == NULL) || (this->hidden == NULL) ) {
+        SDL_OutOfMemory();
+        if ( this ) {
+            SDL_free(this);
+        }
+        return(0);
+    }
 
-	SDL_memset(this->hidden, 0, (sizeof *this->hidden));
-	this->hidden->write_delay = PLAYBOOK_DEFAULT_WRITEDELAY;
+    SDL_memset(this->hidden, 0, (sizeof *this->hidden));
+    this->hidden->write_delay = PLAYBOOK_DEFAULT_WRITEDELAY;
 
-	/* Set the function pointers */
-	this->OpenAudio = PLAYBOOK_AUD_OpenAudio;
-	this->WaitAudio = PLAYBOOK_AUD_WaitAudio;
-	this->PlayAudio = PLAYBOOK_AUD_PlayAudio;
-	this->GetAudioBuf = PLAYBOOK_AUD_GetAudioBuf;
-	this->CloseAudio = PLAYBOOK_AUD_CloseAudio;
+    /* Set the function pointers */
+    this->OpenAudio = PLAYBOOK_AUD_OpenAudio;
+    this->WaitAudio = PLAYBOOK_AUD_WaitAudio;
+    this->PlayAudio = PLAYBOOK_AUD_PlayAudio;
+    this->GetAudioBuf = PLAYBOOK_AUD_GetAudioBuf;
+    this->CloseAudio = PLAYBOOK_AUD_CloseAudio;
 
-	this->free = PLAYBOOK_AUD_DeleteDevice;
+    this->free = PLAYBOOK_AUD_DeleteDevice;
 
-	return this;
+    return this;
 }
 
 AudioBootStrap PLAYBOOK_AUD_bootstrap = {
-		PLAYBOOK_AUD_DRIVER_NAME, "Anthony's libasound audio",
-		PLAYBOOK_AUD_Available, PLAYBOOK_AUD_CreateDevice
+        PLAYBOOK_AUD_DRIVER_NAME, "Anthony's libasound audio",
+        PLAYBOOK_AUD_Available, PLAYBOOK_AUD_CreateDevice
 };
 
 /* This function waits until it is possible to write a full sound buffer */
@@ -130,10 +130,10 @@ static void PLAYBOOK_AUD_WaitAudio(_THIS)
     int readAvailable = 1;
     int writeAvailable = 0;
 #ifdef ACTUALLY_DO_DISK
-	SDL_Delay(this->hidden->write_delay);
+    SDL_Delay(this->hidden->write_delay);
 #endif
 
-	DEBUG_printf(stderr, "WaitAudio called\n");
+    DEBUG_printf(stderr, "WaitAudio called\n");
     FD_ZERO (&rfds);
     FD_ZERO (&wfds);
 
@@ -143,15 +143,15 @@ static void PLAYBOOK_AUD_WaitAudio(_THIS)
     nflds = max (snd_mixer_file_descriptor (this->hidden->mixer_handle), snd_pcm_file_descriptor (this->hidden->pcm_handle, SND_PCM_CHANNEL_PLAYBACK));
 
     if (select (nflds + 1, &rfds, &wfds, NULL, NULL) == -1) {
-    	DEBUG_printf(stderr, "WaitAudio: select failure\n");
+        DEBUG_printf(stderr, "WaitAudio: select failure\n");
         return;
     }
 
     while (!readAvailable && writeAvailable) {
 
-    	/* seems pointless....
-    	 * TODO: consider taking this stuff out.
-    	 */
+        /* seems pointless....
+         * TODO: consider taking this stuff out.
+         */
         if (FD_ISSET (snd_mixer_file_descriptor (this->hidden->mixer_handle), &rfds)) {
             snd_mixer_callbacks_t callbacks = { 0, 0, 0, 0 };
             snd_mixer_read (this->hidden->mixer_handle, &callbacks);
@@ -160,8 +160,8 @@ static void PLAYBOOK_AUD_WaitAudio(_THIS)
         FD_SET (snd_mixer_file_descriptor (this->hidden->mixer_handle), &rfds);
         FD_SET (snd_pcm_file_descriptor (this->hidden->pcm_handle, SND_PCM_CHANNEL_PLAYBACK), &wfds);
 
-    	readAvailable = FD_ISSET(snd_mixer_file_descriptor (this->hidden->mixer_handle), &rfds);
-    	writeAvailable = FD_ISSET (snd_pcm_file_descriptor (this->hidden->pcm_handle, SND_PCM_CHANNEL_PLAYBACK), &wfds);
+        readAvailable = FD_ISSET(snd_mixer_file_descriptor (this->hidden->mixer_handle), &rfds);
+        writeAvailable = FD_ISSET (snd_pcm_file_descriptor (this->hidden->pcm_handle, SND_PCM_CHANNEL_PLAYBACK), &wfds);
         DEBUG_printf(stderr, "waiting...\n");
     }
 
@@ -169,61 +169,61 @@ static void PLAYBOOK_AUD_WaitAudio(_THIS)
 
 static void PLAYBOOK_AUD_PlayAudio(_THIS)
 {
-	int written;
-	fd_set  wfds;
-	DEBUG_printf(stderr, "requested to write %d bytes of audio data\n", this->hidden->mixlen);
+    int written;
+    fd_set  wfds;
+    DEBUG_printf(stderr, "requested to write %d bytes of audio data\n", this->hidden->mixlen);
 
 #ifdef ACTUALLY_DO_DISK
-	/* Write the audio data */
-	written = SDL_RWwrite(this->hidden->output,
+    /* Write the audio data */
+    written = SDL_RWwrite(this->hidden->output,
                         this->hidden->mixbuf, 1,
                         this->hidden->mixlen);
 
-	/* If we couldn't write, assume fatal error for now */
-	if ( (Uint32)written != this->hidden->mixlen ) {
-		DEBUG_printf (stderr, "write error (%d bytes written)\n", written);
-		this->enabled = 0;
-	}
+    /* If we couldn't write, assume fatal error for now */
+    if ( (Uint32)written != this->hidden->mixlen ) {
+        DEBUG_printf (stderr, "write error (%d bytes written)\n", written);
+        this->enabled = 0;
+    }
 #endif
 
-	FD_ZERO (&wfds);
+    FD_ZERO (&wfds);
 
-	if (FD_ISSET (snd_pcm_file_descriptor (this->hidden->pcm_handle, SND_PCM_CHANNEL_PLAYBACK), &wfds)) {
-		DEBUG_printf(stderr, "nothing to write!!");
-		return;
-	}
+    if (FD_ISSET (snd_pcm_file_descriptor (this->hidden->pcm_handle, SND_PCM_CHANNEL_PLAYBACK), &wfds)) {
+        DEBUG_printf(stderr, "nothing to write!!");
+        return;
+    }
 
-	written = snd_pcm_plugin_write (this->hidden->pcm_handle, this->hidden->mixbuf, this->hidden->mixlen);
+    written = snd_pcm_plugin_write (this->hidden->pcm_handle, this->hidden->mixbuf, this->hidden->mixlen);
 
-	if (written == this->hidden->mixlen) {
-		DEBUG_printf (stderr, "bytes written as expected (%d bytes)\n", written);
-	} else {
-		DEBUG_printf (stderr, "write underflow (%d bytes)\n", written);
-	}
+    if (written == this->hidden->mixlen) {
+        DEBUG_printf (stderr, "bytes written as expected (%d bytes)\n", written);
+    } else {
+        DEBUG_printf (stderr, "write underflow (%d bytes)\n", written);
+    }
 }
 
 static Uint8 *PLAYBOOK_AUD_GetAudioBuf(_THIS)
 {
-	return(this->hidden->mixbuf);
+    return(this->hidden->mixbuf);
 }
 
 static void PLAYBOOK_AUD_CloseAudio(_THIS)
 {
-	snd_pcm_plugin_flush (this->hidden->pcm_handle, SND_PCM_CHANNEL_PLAYBACK);
+    snd_pcm_plugin_flush (this->hidden->pcm_handle, SND_PCM_CHANNEL_PLAYBACK);
     snd_mixer_close (this->hidden->mixer_handle);
     snd_pcm_close (this->hidden->pcm_handle);
 
 
-	if ( this->hidden->mixbuf != NULL ) {
-		SDL_FreeAudioMem(this->hidden->mixbuf);
-		this->hidden->mixbuf = NULL;
-	}
+    if ( this->hidden->mixbuf != NULL ) {
+        SDL_FreeAudioMem(this->hidden->mixbuf);
+        this->hidden->mixbuf = NULL;
+    }
 
 #ifdef ACTUALLY_DO_DISK
-	if ( this->hidden->output != NULL ) {
-		SDL_RWclose(this->hidden->output);
-		this->hidden->output = NULL;
-	}
+    if ( this->hidden->output != NULL ) {
+        SDL_RWclose(this->hidden->output);
+        this->hidden->output = NULL;
+    }
 #endif
 }
 
@@ -231,7 +231,7 @@ static int PLAYBOOK_AUD_OpenAudio(_THIS, SDL_AudioSpec *spec)
 {
 
 #ifdef ACTUALLY_DO_DISK
-	const char *fname = PLAYBOOK_AUD_GetOutputFilename();
+    const char *fname = PLAYBOOK_AUD_GetOutputFilename();
 #endif
 
     int     card = -1;
@@ -257,28 +257,28 @@ static int PLAYBOOK_AUD_OpenAudio(_THIS, SDL_AudioSpec *spec)
     int     num_frags = -1;
     char   *sub_opts, *value;
 
-	DEBUG_printf(stderr, "WARNING: You are using Anthony's SDL playbook hack audio driver\n");
+    DEBUG_printf(stderr, "WARNING: You are using Anthony's SDL playbook hack audio driver\n");
 
 #ifdef ACTUALLY_DO_DISK
-	/* Open the audio device */
-	this->hidden->output = SDL_RWFromFile(fname, "wb");
-	if ( this->hidden->output == NULL ) {
-		return(-1);
-	}
-	DEBUG_printf(stderr, "Actually writing to file [%s].\n", fname);
+    /* Open the audio device */
+    this->hidden->output = SDL_RWFromFile(fname, "wb");
+    if ( this->hidden->output == NULL ) {
+        return(-1);
+    }
+    DEBUG_printf(stderr, "Actually writing to file [%s].\n", fname);
 #endif
 
 
-	/* Allocate mixing buffer */
-	this->hidden->mixlen = spec->size;
-	this->hidden->mixbuf = (Uint8 *) SDL_AllocAudioMem(this->hidden->mixlen);
-	if ( this->hidden->mixbuf == NULL ) {
-		return(-1);
-	}
-	SDL_memset(this->hidden->mixbuf, spec->silence, spec->size);
+    /* Allocate mixing buffer */
+    this->hidden->mixlen = spec->size;
+    this->hidden->mixbuf = (Uint8 *) SDL_AllocAudioMem(this->hidden->mixlen);
+    if ( this->hidden->mixbuf == NULL ) {
+        return(-1);
+    }
+    SDL_memset(this->hidden->mixbuf, spec->silence, spec->size);
 
 
-	//below here is where we actually do pb stuff.
+    //below here is where we actually do pb stuff.
     // FIXME: Use SDL_SetError to record errors instead of DEBUG_printf.
     if ((rtn = snd_pcm_open_preferred(&this->hidden->pcm_handle, &card, &dev, SND_PCM_OPEN_PLAYBACK)) < 0)
     {
@@ -364,6 +364,6 @@ static int PLAYBOOK_AUD_OpenAudio(_THIS, SDL_AudioSpec *spec)
     spec->format = AUDIO_U8;
     spec->freq = mSampleRate;
 
-	/* We're ready to rock and roll. :-) */
-	return(0);
+    /* We're ready to rock and roll. :-) */
+    return(0);
 }
