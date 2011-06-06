@@ -36,6 +36,16 @@
 #include "../SDL_audiodev_c.h"
 #include "SDL_playbook_audio.h"
 
+static void DEBUG_doNothing (FILE * fd, char *format, ...) {
+      va_list ap;
+	  va_start(ap, format);
+	  va_end(ap);
+}
+
+
+#define DEBUG_printf DEBUG_doNothing
+//#define DEBUG_printf fprintf
+
 //#define ACTUALLY_DO_DISK
 
 /* The tag name used by Anthony's asound audio */
@@ -83,6 +93,7 @@ static SDL_AudioDevice *PLAYBOOK_AUD_CreateDevice(int devindex)
 		this->hidden = (struct SDL_PrivateAudioData *)
 				SDL_malloc((sizeof *this->hidden));
 	}
+
 	if ( (this == NULL) || (this->hidden == NULL) ) {
 		SDL_OutOfMemory();
 		if ( this ) {
@@ -90,8 +101,8 @@ static SDL_AudioDevice *PLAYBOOK_AUD_CreateDevice(int devindex)
 		}
 		return(0);
 	}
-	SDL_memset(this->hidden, 0, (sizeof *this->hidden));
 
+	SDL_memset(this->hidden, 0, (sizeof *this->hidden));
 	this->hidden->write_delay = PLAYBOOK_DEFAULT_WRITEDELAY;
 
 	/* Set the function pointers */
@@ -107,7 +118,7 @@ static SDL_AudioDevice *PLAYBOOK_AUD_CreateDevice(int devindex)
 }
 
 AudioBootStrap PLAYBOOK_AUD_bootstrap = {
-		PLAYBOOK_AUD_DRIVER_NAME, "Anthony's asound audio",
+		PLAYBOOK_AUD_DRIVER_NAME, "Anthony's libasound audio",
 		PLAYBOOK_AUD_Available, PLAYBOOK_AUD_CreateDevice
 };
 
@@ -122,7 +133,7 @@ static void PLAYBOOK_AUD_WaitAudio(_THIS)
 	SDL_Delay(this->hidden->write_delay);
 #endif
 
-	fprintf(stderr, "WaitAudio called\n");
+	DEBUG_printf(stderr, "WaitAudio called\n");
     FD_ZERO (&rfds);
     FD_ZERO (&wfds);
 
@@ -132,13 +143,15 @@ static void PLAYBOOK_AUD_WaitAudio(_THIS)
     nflds = max (snd_mixer_file_descriptor (this->hidden->mixer_handle), snd_pcm_file_descriptor (this->hidden->pcm_handle, SND_PCM_CHANNEL_PLAYBACK));
 
     if (select (nflds + 1, &rfds, &wfds, NULL, NULL) == -1) {
-    	fprintf(stderr, "WaitAudio: select failure\n");
+    	DEBUG_printf(stderr, "WaitAudio: select failure\n");
         return;
     }
 
     while (!readAvailable && writeAvailable) {
 
-    	/* seems pointless....consider taking this stuff out. */
+    	/* seems pointless....
+    	 * TODO: consider taking this stuff out.
+    	 */
         if (FD_ISSET (snd_mixer_file_descriptor (this->hidden->mixer_handle), &rfds)) {
             snd_mixer_callbacks_t callbacks = { 0, 0, 0, 0 };
             snd_mixer_read (this->hidden->mixer_handle, &callbacks);
@@ -149,10 +162,8 @@ static void PLAYBOOK_AUD_WaitAudio(_THIS)
 
     	readAvailable = FD_ISSET(snd_mixer_file_descriptor (this->hidden->mixer_handle), &rfds);
     	writeAvailable = FD_ISSET (snd_pcm_file_descriptor (this->hidden->pcm_handle, SND_PCM_CHANNEL_PLAYBACK), &wfds);
-
+        DEBUG_printf(stderr, "waiting...\n");
     }
-
-
 
 }
 
@@ -160,7 +171,7 @@ static void PLAYBOOK_AUD_PlayAudio(_THIS)
 {
 	int written;
 	fd_set  wfds;
-	fprintf(stderr, "requested to write %d bytes of audio data\n", this->hidden->mixlen);
+	DEBUG_printf(stderr, "requested to write %d bytes of audio data\n", this->hidden->mixlen);
 
 #ifdef ACTUALLY_DO_DISK
 	/* Write the audio data */
@@ -170,6 +181,7 @@ static void PLAYBOOK_AUD_PlayAudio(_THIS)
 
 	/* If we couldn't write, assume fatal error for now */
 	if ( (Uint32)written != this->hidden->mixlen ) {
+		DEBUG_printf (stderr, "write error (%d bytes written)\n", written);
 		this->enabled = 0;
 	}
 #endif
@@ -177,16 +189,16 @@ static void PLAYBOOK_AUD_PlayAudio(_THIS)
 	FD_ZERO (&wfds);
 
 	if (FD_ISSET (snd_pcm_file_descriptor (this->hidden->pcm_handle, SND_PCM_CHANNEL_PLAYBACK), &wfds)) {
-		fprintf(stderr, "nothing to write!!");
+		DEBUG_printf(stderr, "nothing to write!!");
 		return;
 	}
 
 	written = snd_pcm_plugin_write (this->hidden->pcm_handle, this->hidden->mixbuf, this->hidden->mixlen);
 
 	if (written == this->hidden->mixlen) {
-		fprintf (stderr, "bytes written as expected (%d bytes)\n", written);
+		DEBUG_printf (stderr, "bytes written as expected (%d bytes)\n", written);
 	} else {
-		fprintf (stderr, "write underflow (%d bytes)\n", written);
+		DEBUG_printf (stderr, "write underflow (%d bytes)\n", written);
 	}
 }
 
@@ -245,7 +257,7 @@ static int PLAYBOOK_AUD_OpenAudio(_THIS, SDL_AudioSpec *spec)
     int     num_frags = -1;
     char   *sub_opts, *value;
 
-	fprintf(stderr, "WARNING: You are using Anthony's SDL playbook hack audio driver\n");
+	DEBUG_printf(stderr, "WARNING: You are using Anthony's SDL playbook hack audio driver\n");
 
 #ifdef ACTUALLY_DO_DISK
 	/* Open the audio device */
@@ -253,7 +265,7 @@ static int PLAYBOOK_AUD_OpenAudio(_THIS, SDL_AudioSpec *spec)
 	if ( this->hidden->output == NULL ) {
 		return(-1);
 	}
-	fprintf(stderr, "Actually writing to file [%s].\n", fname);
+	DEBUG_printf(stderr, "Actually writing to file [%s].\n", fname);
 #endif
 
 
@@ -267,10 +279,10 @@ static int PLAYBOOK_AUD_OpenAudio(_THIS, SDL_AudioSpec *spec)
 
 
 	//below here is where we actually do pb stuff.
-    // FIXME: Use SDL_SetError to record errors instead of fprintf.
+    // FIXME: Use SDL_SetError to record errors instead of DEBUG_printf.
     if ((rtn = snd_pcm_open_preferred(&this->hidden->pcm_handle, &card, &dev, SND_PCM_OPEN_PLAYBACK)) < 0)
     {
-        fprintf (stderr, "snd_pcm_open_preferred failed: %s\n", snd_strerror(rtn));
+        DEBUG_printf (stderr, "snd_pcm_open_preferred failed: %s\n", snd_strerror(rtn));
         return -1;
     }
 
@@ -279,7 +291,7 @@ static int PLAYBOOK_AUD_OpenAudio(_THIS, SDL_AudioSpec *spec)
          */
     if ((rtn = snd_pcm_plugin_set_disable (this->hidden->pcm_handle, PLUGIN_DISABLE_MMAP)) < 0)
     {
-        fprintf (stderr, "snd_pcm_plugin_set_disable failed: %s\n", snd_strerror (rtn));
+        DEBUG_printf (stderr, "snd_pcm_plugin_set_disable failed: %s\n", snd_strerror (rtn));
         return -1;
     }
 
@@ -287,7 +299,7 @@ static int PLAYBOOK_AUD_OpenAudio(_THIS, SDL_AudioSpec *spec)
     pi.channel = SND_PCM_CHANNEL_PLAYBACK;
     if ((rtn = snd_pcm_plugin_info (this->hidden->pcm_handle, &pi)) < 0)
     {
-        fprintf (stderr, "snd_pcm_plugin_info failed: %s\n", snd_strerror (rtn));
+        DEBUG_printf (stderr, "snd_pcm_plugin_info failed: %s\n", snd_strerror (rtn));
         return -1;
     }
 
@@ -314,12 +326,12 @@ static int PLAYBOOK_AUD_OpenAudio(_THIS, SDL_AudioSpec *spec)
     strcpy (pp.sw_mixer_subchn_name, "Wave playback channel");
     if ((rtn = snd_pcm_plugin_params (this->hidden->pcm_handle, &pp)) < 0)
     {
-        fprintf (stderr, "snd_pcm_plugin_params failed: %s\n", snd_strerror (rtn));
+        DEBUG_printf (stderr, "snd_pcm_plugin_params failed: %s\n", snd_strerror (rtn));
         return -1;
     }
 
     if ((rtn = snd_pcm_plugin_prepare (this->hidden->pcm_handle, SND_PCM_CHANNEL_PLAYBACK)) < 0)
-        fprintf (stderr, "snd_pcm_plugin_prepare failed: %s\n", snd_strerror (rtn));
+        DEBUG_printf (stderr, "snd_pcm_plugin_prepare failed: %s\n", snd_strerror (rtn));
 
     memset (&setup, 0, sizeof (setup));
     memset (&group, 0, sizeof (group));
@@ -327,25 +339,25 @@ static int PLAYBOOK_AUD_OpenAudio(_THIS, SDL_AudioSpec *spec)
     setup.mixer_gid = &group.gid;
     if ((rtn = snd_pcm_plugin_setup (this->hidden->pcm_handle, &setup)) < 0)
     {
-        fprintf (stderr, "snd_pcm_plugin_setup failed: %s\n", snd_strerror (rtn));
+        DEBUG_printf (stderr, "snd_pcm_plugin_setup failed: %s\n", snd_strerror (rtn));
         return -1;
     }
-    fprintf (stderr, "Format %s \n", snd_pcm_get_format_name (setup.format.format));
-    fprintf (stderr, "Frag Size %d \n", setup.buf.block.frag_size);
-    fprintf (stderr, "Total Frags %d \n", setup.buf.block.frags);
-    fprintf (stderr, "Rate %d \n", setup.format.rate);
-    fprintf (stderr, "Voices %d \n", setup.format.voices);
+    DEBUG_printf (stderr, "Format %s \n", snd_pcm_get_format_name (setup.format.format));
+    DEBUG_printf (stderr, "Frag Size %d \n", setup.buf.block.frag_size);
+    DEBUG_printf (stderr, "Total Frags %d \n", setup.buf.block.frags);
+    DEBUG_printf (stderr, "Rate %d \n", setup.format.rate);
+    DEBUG_printf (stderr, "Voices %d \n", setup.format.voices);
     bsize = setup.buf.block.frag_size;
 
     if (group.gid.name[0] == 0)
     {
-        fprintf (stderr, "Mixer Pcm Group [%s] Not Set \n", group.gid.name);
+        DEBUG_printf (stderr, "Mixer Pcm Group [%s] Not Set \n", group.gid.name);
         exit (-1);
     }
-    fprintf (stderr, "Mixer Pcm Group [%s]\n", group.gid.name);
+    DEBUG_printf (stderr, "Mixer Pcm Group [%s]\n", group.gid.name);
     if ((rtn = snd_mixer_open (&this->hidden->mixer_handle, card, setup.mixer_device)) < 0)
     {
-        fprintf (stderr, "snd_mixer_open failed: %s\n", snd_strerror (rtn));
+        DEBUG_printf (stderr, "snd_mixer_open failed: %s\n", snd_strerror (rtn));
         return -1;
     }
     spec->channels = 2;
