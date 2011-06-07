@@ -238,8 +238,8 @@ static int PLAYBOOK_AUD_OpenAudio(_THIS, SDL_AudioSpec *spec)
     int     dev = 0;
     FILE   *file1;
     int     mSamples;
-    int     mSampleRate = 22050;
-    int     mSampleChannels = 2;
+    int     mSampleRate = spec->freq;
+    int     mSampleChannels = spec->channels;
     int     mSampleBits;
     char   *mSampleBfr1;
     int     fragsize = -1;
@@ -321,7 +321,23 @@ static int PLAYBOOK_AUD_OpenAudio(_THIS, SDL_AudioSpec *spec)
     pp.format.interleave = 1;
     pp.format.rate = mSampleRate;
     pp.format.voices = mSampleChannels;
-    pp.format.format = SND_PCM_SFMT_U8; //anhu's guess
+
+    if (spec->format == AUDIO_U8)
+        pp.format.format = SND_PCM_SFMT_U8;
+    else if (spec->format == AUDIO_S8)
+       pp.format.format = SND_PCM_SFMT_S8;
+    else if (spec->format == AUDIO_U16LSB)
+        pp.format.format = SND_PCM_SFMT_U16_LE;
+    else if (spec->format == AUDIO_S16LSB)
+        pp.format.format = SND_PCM_SFMT_S16_LE;
+    else if (spec->format == AUDIO_U16MSB)
+        pp.format.format = SND_PCM_SFMT_U16_BE;
+    else if (spec->format == AUDIO_S16MSB)
+        pp.format.format = SND_PCM_SFMT_S16_BE;
+    else {
+        DEBUG_printf (stderr, "we don't want to support this sound format: %x \n", this->spec.format);
+        return -1;
+    }
 
     strcpy (pp.sw_mixer_subchn_name, "Wave playback channel");
     if ((rtn = snd_pcm_plugin_params (this->hidden->pcm_handle, &pp)) < 0)
@@ -360,9 +376,6 @@ static int PLAYBOOK_AUD_OpenAudio(_THIS, SDL_AudioSpec *spec)
         DEBUG_printf (stderr, "snd_mixer_open failed: %s\n", snd_strerror (rtn));
         return -1;
     }
-    spec->channels = 2;
-    spec->format = AUDIO_U8;
-    spec->freq = mSampleRate;
 
     /* We're ready to rock and roll. :-) */
     return(0);
