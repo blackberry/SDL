@@ -30,6 +30,12 @@
 
 static SDL_keysym Playbook_Keycodes[256];
 
+struct TouchEvent {
+	int pending;
+	int touching;
+	int pos[2];
+};
+
 static void handlePointerEvent(screen_event_t event, screen_window_t window)
 {
 	int buttonState = 0;
@@ -70,7 +76,6 @@ static void handleKeyboardEvent(screen_event_t event)
     screen_get_event_property_iv(event, SCREEN_PROPERTY_KEY_SCAN, &scan);
     int cap = 0;
     screen_get_event_property_iv(event, SCREEN_PROPERTY_KEY_CAP, &cap);
-    //fprintf(stderr, "Keyboard: sym %d, mods %d, flags %d, scan %d, cap %d\n", sym, modifiers, flags, scan, cap);
 
     // FIXME: Keyboard handling (modifiers are currently ignored, some keys are as well)
     SDL_keysym keysym;
@@ -259,6 +264,7 @@ static void handleKeyboardEvent(screen_event_t event)
     }
 }
 
+static struct TouchEvent moveEvent;
 static void handleMtouchEvent(screen_event_t event, screen_window_t window, int type)
 {
     int contactId;
@@ -277,7 +283,6 @@ static void handleMtouchEvent(screen_event_t event, screen_window_t window, int 
     screen_get_event_property_llv(event, SCREEN_PROPERTY_TIMESTAMP, (long long*)&timestamp);
     screen_get_event_property_iv(event, SCREEN_PROPERTY_SEQUENCE_ID, (int*)&sequenceId);
 
-    //fprintf(stderr, "Touch event: type %d, id %d, pos %d,%d, sequenceId %d\n", type, contactId, pos[0], pos[1], sequenceId);
     static int touching = 0;
     if (type == SCREEN_EVENT_MTOUCH_TOUCH) {
     	if (touching) {
@@ -286,6 +291,7 @@ static void handleMtouchEvent(screen_event_t event, screen_window_t window, int 
     		SDL_PrivateMouseMotion(0, 0, pos[0], pos[1]);
     		SDL_PrivateMouseButton(SDL_PRESSED, SDL_BUTTON_LEFT, pos[0], pos[1]);
     	}
+    	moveEvent.pending = 0;
     	touching = 1;
     } else if (type == SCREEN_EVENT_MTOUCH_RELEASE) {
     	if (touching) {
@@ -294,9 +300,14 @@ static void handleMtouchEvent(screen_event_t event, screen_window_t window, int 
     	} else {
     		SDL_PrivateMouseMotion(0, 0, pos[0], pos[1]);
     	}
+    	moveEvent.pending = 0;
     	touching = 0;
     } else if (type == SCREEN_EVENT_MTOUCH_MOVE) {
-    	SDL_PrivateMouseMotion((touching?SDL_BUTTON_LEFT:0), 0, pos[0], pos[1]);
+    	moveEvent.pending = 1;
+    	moveEvent.touching = touching;
+    	moveEvent.pos[0] = pos[0];
+    	moveEvent.pos[1] = pos[1];
+    	//SDL_PrivateMouseMotion((touching?SDL_BUTTON_LEFT:0), 0, pos[0], pos[1]);
     }
 
     // TODO: Possibly need more complicated touch handling
@@ -339,6 +350,10 @@ PLAYBOOK_PumpEvents(_THIS)
 			break;
 		}
 		break;
+	}
+	if (moveEvent.pending) {
+		SDL_PrivateMouseMotion((moveEvent.touching?SDL_BUTTON_LEFT:0), 0, moveEvent.pos[0], moveEvent.pos[1]);
+		moveEvent.pending = 0;
 	}
 }
 

@@ -174,7 +174,8 @@ int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 	/* Modes sorted largest to smallest */
 	SDL_modelist[0]->w = 1024; SDL_modelist[0]->h = 600;
 	SDL_modelist[1]->w = 800; SDL_modelist[1]->h = 576;
-	SDL_modelist[2] = NULL;
+	SDL_modelist[2]->w = 640; SDL_modelist[2]->h = 480;
+	SDL_modelist[3] = NULL;
 
 	/* Determine the screen depth (use default 32-bit depth) */
 	vformat->BitsPerPixel = 32;
@@ -194,15 +195,16 @@ SDL_Rect **PLAYBOOK_ListModes(_THIS, SDL_PixelFormat *format, Uint32 flags)
 	if (flags & SDL_FULLSCREEN ) {
 		return SDL_modelist;
 	} else {
-		return SDL_modelist; // Consider changing this!
+		return (SDL_Rect**)-1; // HACK FOR DOSBOX makes it -1 SDL_modelist; // Consider changing this!
 	}
 }
 
 SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 				int width, int height, int bpp, Uint32 flags)
 {
-	if (m_buffer)
+	if (m_buffer) {
 		SDL_free(m_buffer);
+	}
 
 	// FIXME: Use a screen pixmap
 	m_buffer = SDL_malloc(width * height * (bpp / 8));
@@ -221,12 +223,18 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 	}
 
 	{
-			screen_window_t screenWindow;
-			int rc = screen_create_window(&screenWindow, m_screenContext);
+		screen_window_t screenWindow;
+		int rc = 0;
+		if (!m_screenWindow) {
+			rc = screen_create_window(&screenWindow, m_screenContext);
 			if (rc) {
 				SDL_SetError("Cannot create window: %s", strerror(errno));
 				return NULL;
 			}
+		} else {
+			screen_destroy_window_buffers(m_screenWindow);
+			screenWindow = m_screenWindow;
+		}
 
 			/*
 			 * FIXME: More properties needed
