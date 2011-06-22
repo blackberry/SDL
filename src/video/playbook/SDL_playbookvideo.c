@@ -202,6 +202,7 @@ SDL_Rect **PLAYBOOK_ListModes(_THIS, SDL_PixelFormat *format, Uint32 flags)
 SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 				int width, int height, int bpp, Uint32 flags)
 {
+
 	if (m_buffer) {
 		SDL_free(m_buffer);
 	}
@@ -249,15 +250,15 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 				return NULL;
 			}
 
-			int size[2] = {width, height};
-			rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_SIZE, size);
+			int sizeOfWindow[2] = {1024, 600};
+			rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_SIZE, sizeOfWindow);
 			if (rc) {
 				SDL_SetError("Cannot resize window: %s", strerror(errno));
 				screen_destroy_window(screenWindow);
 				return NULL;
 			}
-
-			rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_BUFFER_SIZE, size);
+			int sizeOfBuffer[2] = {width, height};
+			rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_BUFFER_SIZE, sizeOfBuffer);
 			if (rc) {
 				SDL_SetError("Cannot resize window buffer: %s", strerror(errno));
 				screen_destroy_window(screenWindow);
