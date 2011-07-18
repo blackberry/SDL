@@ -319,6 +319,130 @@ static int TranslateVKB(int sym, int mods, int flags, int scan, int cap, SDL_key
 		keysym->scancode = 57;
 		break;
 	}
+
+	switch (keysym->sym)
+	{
+	case SDLK_a:
+		keysym->unicode = 'a';
+		break;
+	case SDLK_b:
+		keysym->unicode = 'b';
+		break;
+	case SDLK_c:
+		keysym->unicode = 'c';
+		break;
+	case SDLK_d:
+		keysym->unicode = 'd';
+		break;
+	case SDLK_e:
+		keysym->unicode = 'e';
+		break;
+	case SDLK_f:
+		keysym->unicode = 'f';
+		break;
+	case SDLK_g:
+		keysym->unicode = 'g';
+		break;
+	case SDLK_h:
+		keysym->unicode = 'h';
+		break;
+	case SDLK_i:
+		keysym->unicode = 'i';
+		break;
+	case SDLK_j:
+		keysym->unicode = 'j';
+		break;
+	case SDLK_k:
+		keysym->unicode = 'k';
+		break;
+	case SDLK_l:
+		keysym->unicode = 'l';
+		break;
+	case SDLK_m:
+		keysym->unicode = 'm';
+		break;
+	case SDLK_n:
+		keysym->unicode = 'n';
+		break;
+	case SDLK_o:
+		keysym->unicode = 'o';
+		break;
+	case SDLK_p:
+		keysym->unicode = 'p';
+		break;
+	case SDLK_q:
+		keysym->unicode = 'q';
+		break;
+	case SDLK_r:
+		keysym->unicode = 'r';
+		break;
+	case SDLK_s:
+		keysym->unicode = 's';
+		break;
+	case SDLK_t:
+		keysym->unicode = 't';
+		break;
+	case SDLK_u:
+		keysym->unicode = 'u';
+		break;
+	case SDLK_v:
+		keysym->unicode = 'v';
+		break;
+	case SDLK_w:
+		keysym->unicode = 'w';
+		break;
+	case SDLK_x:
+		keysym->unicode = 'x';
+		break;
+	case SDLK_y:
+		keysym->unicode = 'y';
+		break;
+	case SDLK_z:
+		keysym->unicode = 'z';
+		break;
+	case SDLK_1:
+		keysym->unicode = '1';
+		break;
+	case SDLK_2:
+		keysym->unicode = '2';
+		break;
+	case SDLK_3:
+		keysym->unicode = '3';
+		break;
+	case SDLK_4:
+		keysym->unicode = '4';
+		break;
+	case SDLK_5:
+		keysym->unicode = '5';
+		break;
+	case SDLK_6:
+		keysym->unicode = '6';
+		break;
+	case SDLK_7:
+		keysym->unicode = '7';
+		break;
+	case SDLK_8:
+		keysym->unicode = '8';
+		break;
+	case SDLK_9:
+		keysym->unicode = '9';
+		break;
+	case SDLK_0:
+		keysym->unicode = '0';
+		break;
+	case SDLK_COMMA:
+		keysym->unicode = ',';
+		break;
+	case SDLK_PERIOD:
+		keysym->unicode = '.';
+		break;
+	case SDLK_COLON:
+		keysym->unicode = ':';
+		break;
+	case SDLK_SLASH:
+		keysym->unicode = '/';
+		break;
+	}
 	keysym->mod = KMOD_NONE;
 	return shifted;
 }
