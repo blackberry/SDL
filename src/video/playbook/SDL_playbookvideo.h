@@ -29,24 +29,24 @@
 
 /* Hidden "this" pointer for the video functions */
 #define _THIS	SDL_VideoDevice *this
+#define _priv   this->hidden
 
 #define SDL_NUMMODES 3
-
-extern screen_context_t m_screenContext;
-extern screen_event_t m_screenEvent;
-extern screen_window_t m_screenWindow;
-extern screen_buffer_t m_frontBuffer;
-extern void* m_pixels;
-extern int m_pitch;
-extern void* m_buffer;
-
-extern SDL_Rect *SDL_modelist[SDL_NUMMODES+1];
 
 /* Private display data */
 
 struct SDL_PrivateVideoData {
     int w, h;
     void *buffer;
+    screen_context_t screenContext;
+    screen_event_t screenEvent;
+    screen_window_t screenWindow;
+    screen_buffer_t frontBuffer;
+    SDL_Surface *surface;
+    void* pixels;
+    int pitch;
+
+    SDL_Rect *SDL_modelist[SDL_NUMMODES+1];
 };
 
 #endif /* _SDL_playbookvideo_h */

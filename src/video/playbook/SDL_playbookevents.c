@@ -31,13 +31,28 @@
 static SDL_keysym Playbook_Keycodes[256];
 static SDLKey *Playbook_specialsyms;
 
+//#define TOUCHPAD_SIMULATE 1 // Still experimental
+#ifdef TOUCHPAD_SIMULATE
+struct TouchState {
+	int oldPos[2];
+	int pending[2];
+	int mask;
+	int moveId;
+	int leftDown;
+	int leftId;
+	int rightDown;
+	int rightId;
+};
+
+static struct TouchState state = { {0, 0}, {0, 0}, 0, -1, 0, -1, 0, -1};
+#endif
 struct TouchEvent {
 	int pending;
 	int touching;
 	int pos[2];
 };
-
 static struct TouchEvent moveEvent;
+
 
 static void handlePointerEvent(screen_event_t event, screen_window_t window)
 {
@@ -53,6 +68,10 @@ static void handlePointerEvent(screen_event_t event, screen_window_t window)
 	int wheel_delta;
 	screen_get_event_property_iv(event, SCREEN_PROPERTY_MOUSE_WHEEL, &wheel_delta);
 
+	if (coords[1] < 0) {
+		fprintf(stderr, "Detected pointer swipe event: %d,%d\n", coords[0], coords[1]);
+		return;
+	}
 	//fprintf(stderr, "Pointer: %d,(%d,%d),(%d,%d),%d\n", buttonState, coords[0], coords[1], screen_coords[0], screen_coords[1], wheel_delta);
 	if (wheel_delta != 0) {
 		int button;
@@ -491,6 +510,93 @@ static void handleKeyboardEvent(screen_event_t event)
 
 static void handleMtouchEvent(screen_event_t event, screen_window_t window, int type)
 {
+#ifdef TOUCHPAD_SIMULATE
+
+	unsigned buttonWidth = 200;
+	unsigned buttonHeight = 300;
+
+	int contactId;
+	int pos[2];
+	int screenPos[2];
+	screen_get_event_property_iv(event, SCREEN_PROPERTY_TOUCH_ID, (int*)&contactId);
+	screen_get_event_property_iv(event, SCREEN_PROPERTY_SOURCE_POSITION, pos);
+	screen_get_event_property_iv(event, SCREEN_PROPERTY_POSITION, screenPos);
+
+	int mouseX, mouseY;
+	SDL_GetMouseState(&mouseX, &mouseY);
+
+	if (state.leftId == contactId) {
+		if (type == SCREEN_EVENT_MTOUCH_RELEASE) {
+			state.leftId = -1;
+			SDL_PrivateMouseButton(SDL_RELEASED, SDL_BUTTON_LEFT, mouseX, mouseY);
+		}
+		return;
+	}
+	if (state.rightId == contactId) {
+		if (type == SCREEN_EVENT_MTOUCH_RELEASE) {
+			state.rightId = -1;
+			SDL_PrivateMouseButton(SDL_RELEASED, SDL_BUTTON_RIGHT, mouseX, mouseY);
+		}
+		return;
+	}
+
+	if (screenPos[0] < buttonWidth && contactId != state.moveId) {
+		// Special handling for buttons
+
+		if (screenPos[1] < buttonHeight) {
+			// Left button
+			if (type == SCREEN_EVENT_MTOUCH_TOUCH) {
+				if (state.leftId == -1 && contactId != state.rightId) {
+					SDL_PrivateMouseButton(SDL_PRESSED, SDL_BUTTON_LEFT, mouseX, mouseY);
+					state.leftId = contactId;
+				}
+			}
+		} else {
+			// Right button
+			if (type == SCREEN_EVENT_MTOUCH_TOUCH) {
+				if (state.rightId == -1 && contactId != state.leftId) {
+					SDL_PrivateMouseButton(SDL_PRESSED, SDL_BUTTON_RIGHT, mouseX, mouseY);
+					state.rightId = contactId;
+				}
+			}
+		}
+	} else {
+		// Can only generate motion events
+		int doMove = 0;
+		switch (type) {
+		case SCREEN_EVENT_MTOUCH_TOUCH:
+			if (state.moveId == -1 || state.moveId == contactId) {
+				state.moveId = contactId;
+			}
+			break;
+		case SCREEN_EVENT_MTOUCH_RELEASE:
+			if (state.moveId == contactId) {
+				doMove = 1;
+				state.moveId = -1;
+			}
+			break;
+		case SCREEN_EVENT_MTOUCH_MOVE:
+			if (state.moveId == contactId) {
+				doMove = 1;
+			}
+			break;
+		}
+
+		if (doMove) {
+			int mask = 0;
+			if (state.leftDown)
+				mask |= SDL_BUTTON_LEFT;
+			if (state.rightDown)
+				mask |= SDL_BUTTON_RIGHT;
+			state.mask = mask;
+			state.pending[0] += pos[0] - state.oldPos[0];
+			state.pending[1] += pos[1] - state.oldPos[1];
+			//SDL_PrivateMouseMotion(mask, 1, pos[0] - state.oldPos[0], pos[1] - state.oldPos[1]);
+		}
+		state.oldPos[0] = pos[0];
+		state.oldPos[1] = pos[1];
+	}
+#else
     int contactId;
     int pos[2];
     int screenPos[2];
@@ -503,10 +609,22 @@ static void handleMtouchEvent(screen_event_t event, screen_window_t window, int 
     screen_get_event_property_iv(event, SCREEN_PROPERTY_SOURCE_POSITION, pos);
     screen_get_event_property_iv(event, SCREEN_PROPERTY_POSITION, screenPos);
     screen_get_event_property_iv(event, SCREEN_PROPERTY_TOUCH_ORIENTATION, (int*)&orientation);
-    screen_get_event_property_iv(event, SCREEN_PROPERTY_TOUCH_PRESSURE, (int*)&pressure);
+    screen_get_event_property_iv(event, SCREEN_PROPERTY_TOUCH_PRESSURE, (int*)&pressure); // Pointless - always 1 if down
     screen_get_event_property_llv(event, SCREEN_PROPERTY_TIMESTAMP, (long long*)&timestamp);
     screen_get_event_property_iv(event, SCREEN_PROPERTY_SEQUENCE_ID, (int*)&sequenceId);
 
+//    char typeChar = 'D';
+//    if (type == SCREEN_EVENT_MTOUCH_RELEASE)
+//    	typeChar = 'U';
+//    else if (type == SCREEN_EVENT_MTOUCH_MOVE)
+//    	typeChar = 'M';
+//
+//    fprintf(stderr, "Touch %d: (%d,%d) %c\n", contactId, pos[0], pos[1], typeChar);
+
+    if (pos[1] < 0) {
+    	fprintf(stderr, "Detected swipe event: %d,%d\n", pos[0], pos[1]);
+    	return;
+    }
     static int touching = 0;
     if (type == SCREEN_EVENT_MTOUCH_TOUCH) {
     	if (touching) {
@@ -535,6 +653,7 @@ static void handleMtouchEvent(screen_event_t event, screen_window_t window, int 
     }
 
     // TODO: Possibly need more complicated touch handling
+#endif
 }
 
 void
@@ -542,17 +661,17 @@ PLAYBOOK_PumpEvents(_THIS)
 {
 	while (1)
 	{
-		int rc = screen_get_event(m_screenContext, m_screenEvent, 0 /*timeout*/);
+		int rc = screen_get_event(this->hidden->screenContext, this->hidden->screenEvent, 0 /*timeout*/);
 		if (rc)
 			break;
 
 		int type;
-		rc = screen_get_event_property_iv(m_screenEvent, SCREEN_PROPERTY_TYPE, &type);
+		rc = screen_get_event_property_iv(this->hidden->screenEvent, SCREEN_PROPERTY_TYPE, &type);
 		if (rc || type == SCREEN_EVENT_NONE)
 			break;
 
 		screen_window_t window;
-		screen_get_event_property_pv(m_screenEvent, SCREEN_PROPERTY_WINDOW, (void **)&window);
+		screen_get_event_property_pv(this->hidden->screenEvent, SCREEN_PROPERTY_WINDOW, (void **)&window);
 		if (!window && type != SCREEN_EVENT_KEYBOARD)
 			break;
 
@@ -564,25 +683,32 @@ PLAYBOOK_PumpEvents(_THIS)
 		case SCREEN_EVENT_PROPERTY:
 			{
 				int val;
-				screen_get_event_property_iv(m_screenEvent, SCREEN_PROPERTY_NAME, &val);
+				screen_get_event_property_iv(this->hidden->screenEvent, SCREEN_PROPERTY_NAME, &val);
 
 				//fprintf(stderr, "Property change (property val=%d)\n", val);
 			}
 			break;
 		case SCREEN_EVENT_POINTER:
-			handlePointerEvent(m_screenEvent, window);
+			handlePointerEvent(this->hidden->screenEvent, window);
 			break;
 		case SCREEN_EVENT_KEYBOARD:
-			handleKeyboardEvent(m_screenEvent);
+			handleKeyboardEvent(this->hidden->screenEvent);
 			break;
 		case SCREEN_EVENT_MTOUCH_TOUCH:
 		case SCREEN_EVENT_MTOUCH_MOVE:
 		case SCREEN_EVENT_MTOUCH_RELEASE:
-			handleMtouchEvent(m_screenEvent, window, type);
+			handleMtouchEvent(this->hidden->screenEvent, window, type);
 			break;
 		}
-		break;
 	}
+
+#ifdef TOUCHPAD_SIMULATE
+	if (state.pending[0] || state.pending[1]) {
+		SDL_PrivateMouseMotion(state.mask, 1, state.pending[0], state.pending[1]);
+		state.pending[0] = 0;
+		state.pending[1] = 0;
+	}
+#endif
 	if (moveEvent.pending) {
 		SDL_PrivateMouseMotion((moveEvent.touching?SDL_BUTTON_LEFT:0), 0, moveEvent.pos[0], moveEvent.pos[1]);
 		moveEvent.pending = 0;
