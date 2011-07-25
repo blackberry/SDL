@@ -100,10 +100,11 @@
 #define HAVE_SYSCONF	1
 #define HAVE_CLOCK_GETTIME 1
 
-/* Enable the dummy audio driver (src/audio/playbook/\*.c) */
-#define SDL_AUDIO_DRIVER_PLAYBOOK	1
+/* Enable the QNX NTO audio driver (src/audio/nto/\*.c) */
+#define SDL_AUDIO_DRIVER_QNXNTO 1
+//#define SDL_AUDIO_DRIVER_PLAYBOOK	1 // Anthony's experimental driver
 
-/* Enable the stub cdrom driver (src/cdrom/dummy/\*.c) */
+/* Enable the QNX cdrom driver (src/cdrom/dummy/\*.c) */
 #define SDL_CDROM_QNX	1
 
 /* Enable the stub joystick driver (src/joystick/dummy/\*.c) */
