@@ -28,6 +28,13 @@
 #include "SDL_playbookvideo.h"
 #include "SDL_playbookevents_c.h"
 
+#include <bps/bps.h>
+#include <bps/screen.h>
+#include <bps/event.h>
+#include <bps/orientation.h>
+#include <bps/navigator.h>
+#include "emulate.h"
+
 static SDL_keysym Playbook_Keycodes[256];
 static SDLKey *Playbook_specialsyms;
 
@@ -656,9 +663,126 @@ static void handleMtouchEvent(screen_event_t event, screen_window_t window, int 
 #endif
 }
 
+void handleNavigatorEvent(_THIS, bps_event_t *event)
+{
+	switch (bps_event_get_code(event))
+	{
+	case NAV_INVOKE:
+		fprintf(stderr, "Navigator invoke\n");
+		break;
+	case NAV_EXIT:
+		SDL_PrivateQuit(); // We can't stop it from closing anyway
+		break;
+	case NAV_WINDOW_STATE:
+	{
+		nav_window_state_t state = nav_event_get_window_state(event);
+		switch (state) {
+		case NAV_WINDOW_FULLSCREEN:
+			fprintf(stderr, "Fullscreen\n");
+			break;
+		case NAV_WINDOW_THUMBNAIL:
+			fprintf(stderr, "Thumbnail\n"); // TODO: Consider pausing?
+			break;
+		case NAV_WINDOW_INVISIBLE:
+			fprintf(stderr, "Invisible\n"); // TODO: Consider pausing?
+			break;
+		}
+	}
+		break;
+	case NAV_SWIPE_DOWN:
+		emulate_swipedown(_priv->emu_context, _priv->screenWindow);
+		break;
+	case NAV_SWIPE_START:
+		fprintf(stderr, "Swipe start\n");
+		break;
+	case NAV_LOW_MEMORY:
+		fprintf(stderr, "Low memory\n"); // TODO: Anything we can do?
+		break;
+	case NAV_ORIENTATION_CHECK:
+		fprintf(stderr, "Orientation check\n");
+		break;
+	case NAV_ORIENTATION:
+		fprintf(stderr, "Navigator orientation\n");
+		break;
+	case NAV_BACK:
+		fprintf(stderr, "Navigator back\n");
+		break;
+	case NAV_WINDOW_ACTIVE:
+		fprintf(stderr, "Window active\n"); // TODO: Handle?
+		break;
+	case NAV_WINDOW_INACTIVE:
+		fprintf(stderr, "Window inactive\n"); // TODO: Handle?
+		break;
+	default:
+		fprintf(stderr, "Unknown navigator event: %d\n", bps_event_get_code(event));
+		break;
+	}
+}
+
+void handleScreenEvent(_THIS, bps_event_t *event)
+{
+	int type;
+	screen_event_t se = screen_event_get_event(event);
+	int rc = screen_get_event_property_iv(se, SCREEN_PROPERTY_TYPE, &type);
+	if (rc || type == SCREEN_EVENT_NONE)
+		return;
+
+	screen_window_t window;
+	screen_get_event_property_pv(se, SCREEN_PROPERTY_WINDOW, (void **)&window);
+	if (!window && type != SCREEN_EVENT_KEYBOARD)
+		return;
+
+	switch (type)
+	{
+		case SCREEN_EVENT_CLOSE:
+			SDL_PrivateQuit(); // We can't stop it from closing anyway
+			break;
+		case SCREEN_EVENT_PROPERTY:
+			{
+				int val;
+				screen_get_event_property_iv(se, SCREEN_PROPERTY_NAME, &val);
+
+				//fprintf(stderr, "Property change (property val=%d)\n", val);
+			}
+			break;
+		case SCREEN_EVENT_POINTER:
+			handlePointerEvent(se, window);
+			break;
+		case SCREEN_EVENT_KEYBOARD:
+			handleKeyboardEvent(se);
+			break;
+		case SCREEN_EVENT_MTOUCH_TOUCH:
+		case SCREEN_EVENT_MTOUCH_MOVE:
+		case SCREEN_EVENT_MTOUCH_RELEASE:
+			emulate_touch(this->hidden->emu_context, se);
+			break;
+	}
+}
+
 void
 PLAYBOOK_PumpEvents(_THIS)
 {
+#if 1
+	bps_event_t *event;
+	bps_get_event(&event, 0);
+	while (event)
+	{
+		switch (bps_event_get_domain(event))
+		{
+		case BPS_EVENT_DOMAIN_NAVIGATOR:
+			handleNavigatorEvent(this, event);
+			break;
+		case BPS_EVENT_DOMAIN_SCREEN:
+			handleScreenEvent(this, event);
+			break;
+		default:
+			fprintf(stderr, "Unknown event domain: %d\n", bps_event_get_domain(event));
+			break;
+		}
+		bps_event_destroy(event);
+		bps_get_event(&event, 0);
+	}
+#else
 	while (1)
 	{
 		int rc = screen_get_event(this->hidden->screenContext, this->hidden->screenEvent, 0 /*timeout*/);
@@ -697,10 +821,12 @@ PLAYBOOK_PumpEvents(_THIS)
 		case SCREEN_EVENT_MTOUCH_TOUCH:
 		case SCREEN_EVENT_MTOUCH_MOVE:
 		case SCREEN_EVENT_MTOUCH_RELEASE:
-			handleMtouchEvent(this->hidden->screenEvent, window, type);
+			//handleMtouchEvent(this->hidden->screenEvent, window, type);
+			emulate_touch(this->hidden->emu_context, this->hidden->screenEvent);
 			break;
 		}
 	}
+#endif
 
 #ifdef TOUCHPAD_SIMULATE
 	if (state.pending[0] || state.pending[1]) {
@@ -713,6 +839,7 @@ PLAYBOOK_PumpEvents(_THIS)
 		SDL_PrivateMouseMotion((moveEvent.touching?SDL_BUTTON_LEFT:0), 0, moveEvent.pos[0], moveEvent.pos[1]);
 		moveEvent.pending = 0;
 	}
+
 }
 
 void PLAYBOOK_InitOSKeymap(_THIS)

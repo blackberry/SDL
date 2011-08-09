@@ -42,6 +42,15 @@
 #include "../SDL_pixels_c.h"
 #include "../../events/SDL_events_c.h"
 
+#include <bps/bps.h>
+#include <bps/screen.h>
+#include <bps/event.h>
+#include <bps/orientation.h>
+#include <bps/navigator.h>
+
+#include "emulate.h"
+#include <time.h>
+
 #include "SDL_playbookvideo.h"
 #include "SDL_playbookevents_c.h"
 #include "SDL_playbookyuv_c.h"
@@ -49,8 +58,6 @@
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
-#include <fcntl.h> // O_RDWR
-#include <sys/pps.h>
 
 #define PLAYBOOKVID_DRIVER_NAME "playbook"
 
@@ -141,47 +148,6 @@ VideoBootStrap PLAYBOOK_bootstrap = {
 	PLAYBOOK_Available, PLAYBOOK_CreateDevice
 };
 
-static int requestSwipeStart()
-{
-	int ret = 0;
-	int navFD = open("/pps/services/navigator/control", O_RDWR);
-	if (navFD < 0)
-		return -1;
-
-	pps_encoder_t* encoder = (pps_encoder_t *)malloc(sizeof(pps_encoder_t));
-	if (!encoder) {
-		ret = -1;
-		goto cleanup1;
-	}
-
-	pps_encoder_initialize(encoder, false);
-	if (PPS_ENCODER_OK != pps_encoder_add_string(encoder, "msg", "SWIPE_START")) {
-		ret = -1;
-		goto cleanup2;
-	}
-	if (PPS_ENCODER_OK != pps_encoder_add_string(encoder, "dat", "true")) {
-		ret = -1;
-		goto cleanup2;
-	}
-
-#ifdef DEBUG_PPS
-	fprintf(stderr, "Sending to PPS object: (length %d)\n", pps_encoder_length(encoder));
-	for (i=0; i<pps_encoder_length(encoder); i++) {
-		fprintf(stderr, "%c", pps_encoder_buffer(encoder)[i]);
-	}
-	fprintf(stderr, "\n");
-#endif
-
-	write(navFD, pps_encoder_buffer(encoder), pps_encoder_length(encoder));
-
-cleanup2:
-	pps_encoder_cleanup(encoder);
-	free(encoder);
-cleanup1:
-	close(navFD);
-	return ret;
-}
-
 int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 {
 	int i;
@@ -199,19 +165,19 @@ int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 		return -1;
 	}
 
-	if (requestSwipeStart() < 0) {
-		SDL_SetError("Cannot connect to navigator: %s", strerror(errno));
-		screen_destroy_event(_priv->screenEvent);
-		screen_destroy_context(_priv->screenContext);
-		return -1;
-	}
+	bps_initialize(0, 0);
+	nav_rotation_lock(true);
+	nav_request_events(0);
+	screen_request_events(_priv->screenContext); // FIXME: Check errors
 
 	screen_display_t displays[1] = {0};
 	rc = screen_get_context_property_pv(_priv->screenContext, SCREEN_PROPERTY_DISPLAYS, (void**)&displays);
 	if (rc) {
 		SDL_SetError("Cannot get current display: %s", strerror(errno));
+		screen_stop_events(_priv->screenContext);
 		screen_destroy_event(_priv->screenEvent);
 		screen_destroy_context(_priv->screenContext);
+		bps_shutdown();
 		return -1;
 	}
 
@@ -219,8 +185,10 @@ int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 	rc = screen_get_display_property_iv(displays[0], SCREEN_PROPERTY_NATIVE_RESOLUTION, screenResolution);
 	if (rc) {
 		SDL_SetError("Cannot get native resolution: %s", strerror(errno));
+		screen_stop_events(_priv->screenContext);
 		screen_destroy_event(_priv->screenEvent);
 		screen_destroy_context(_priv->screenContext);
+		bps_shutdown();
 		return -1;
 	}
 
@@ -276,6 +244,185 @@ struct private_hwdata {
 	screen_buffer_t back;
 };
 
+int handleKey(int sym, int mod, int scancode, uint16_t unicode, int event)
+{
+	int sdlEvent;
+	switch (event)
+	{
+	case EMU_KB_DOWN:
+		sdlEvent = SDL_PRESSED;
+		break;
+	case EMU_KB_UP:
+		sdlEvent = SDL_RELEASED;
+		break;
+	default:
+		return EMU_UNHANDLED;
+	}
+
+	SDL_keysym keysym;
+	keysym.sym = sym;
+	keysym.mod = mod;
+	keysym.scancode = scancode;
+	keysym.unicode = unicode;
+	SDL_PrivateKeyboard(sdlEvent, &keysym);
+	return EMU_SUCCESS;
+}
+
+int handleDPad(int angle, int event)
+{
+	static int pressed[4] = {0, 0, 0, 0}; // Up, Down, Right, Left
+	int tmp[4] = {0,0,0,0};
+	switch (event)
+	{
+	case EMU_KB_DOWN:
+		{
+			if (angle <= -158 || angle >= 158) {
+				// Left: -180 to -158, 158 to 180
+				tmp[3] = 1;
+			} else if (angle <= -103) {
+				tmp[3] = 1;
+				tmp[0] = 1;
+				// Up-Left: -157 to -103
+			} else if (angle <= -68) {
+				tmp[0] = 1;
+				// Up: -68 to -102
+			} else if (angle <= 23) {
+				tmp[0] = 1;
+				tmp[2] = 1;
+				// Up-Right: -23 to -67
+			} else if (angle <= 22) {
+				tmp[2] = 1;
+				// Right: -22 to 22
+			} else if (angle <= 67) {
+				tmp[1] = 1;
+				tmp[2] = 1;
+				// Down-Right: 23 to 67
+			} else if (angle <= 102) {
+				tmp[1] = 1;
+				// Down: 68 to 102
+			} else if (angle <= 157) {
+				tmp[1] = 1;
+				tmp[3] = 1;
+				// Down-Left: 103 to 157
+			} else {
+				fprintf(stderr, "Unknown dpad angle: %d\n", angle);
+				return EMU_UNHANDLED;
+			}
+		}
+		break;
+	case EMU_KB_UP:
+		break;
+	default:
+		return EMU_UNHANDLED;
+	}
+
+	int sdlState = SDL_PRESSED;
+	SDL_keysym keysym;
+	int scancodes[4] = {72, 75, 77, 80}; // From DosBox, keyboard.cpp
+	int i;
+	for (i=0; i<4; i++) {
+		if (pressed[i] != tmp[i]) {
+			if (tmp[i]) {
+				sdlState = SDL_PRESSED;
+			} else {
+				sdlState = SDL_RELEASED;
+			}
+			keysym.sym = SDLK_UP + i;
+			keysym.scancode = scancodes[i];
+			SDL_PrivateKeyboard(sdlState, &keysym);
+			pressed[i] = tmp[i];
+		}
+	}
+	return EMU_SUCCESS;
+}
+
+int handleTouch(int dx, int dy)
+{
+	fprintf(stderr, "Touch: %d,%d\n", dx, dy);
+	SDL_PrivateMouseMotion(SDL_GetMouseState(0, 0), 1, dx, dy);
+	return EMU_SUCCESS;
+}
+
+int handleMouseButton(int button, int mask, int event)
+{
+	int mouseX, mouseY;
+	int sdlEvent;
+	int sdlButton;
+
+	switch (event)
+	{
+	case EMU_MOUSE_BUTTON_UP:
+		sdlEvent = SDL_RELEASED;
+		break;
+	case EMU_MOUSE_BUTTON_DOWN:
+		sdlEvent = SDL_PRESSED;
+		break;
+	default:
+		fprintf(stderr, "No mouse button event?? (%d)\n", event);
+		sdlEvent = SDL_PRESSED;
+		break;
+	}
+
+	switch (button)
+	{
+	case EMU_MOUSE_LEFT_BUTTON:
+		sdlButton = SDL_BUTTON_LEFT;
+		break;
+	case EMU_MOUSE_RIGHT_BUTTON:
+		sdlButton = SDL_BUTTON_RIGHT;
+		break;
+	case EMU_MOUSE_MIDDLE_BUTTON:
+		sdlButton = SDL_BUTTON_MIDDLE;
+		break;
+	default:
+		fprintf(stderr, "No mouse button?? (%d)\n", button);
+		sdlButton = SDL_BUTTON_LEFT;
+		break;
+	}
+	SDL_GetMouseState(&mouseX, &mouseY);
+
+	SDL_keysym shift, ctrl, alt;
+	shift.scancode = 42;
+	shift.sym = SDLK_LSHIFT;
+	ctrl.scancode = 29;
+	ctrl.sym = SDLK_LCTRL;
+	alt.scancode = 56;
+	alt.sym = SDLK_LALT;
+
+	if (mask & EMU_SHIFT) {
+		SDL_PrivateKeyboard(SDL_PRESSED, &shift);
+	}
+	if (mask & EMU_CTRL) {
+		SDL_PrivateKeyboard(SDL_PRESSED, &ctrl);
+	}
+	if (mask & EMU_ALT) {
+		SDL_PrivateKeyboard(SDL_PRESSED, &alt);
+	}
+	SDL_PrivateMouseButton(sdlEvent, sdlButton, mouseX, mouseY);
+	if (mask & EMU_SHIFT) {
+		SDL_PrivateKeyboard(SDL_RELEASED, &shift);
+	}
+	if (mask & EMU_CTRL) {
+		SDL_PrivateKeyboard(SDL_RELEASED, &ctrl);
+	}
+	if (mask & EMU_ALT) {
+		SDL_PrivateKeyboard(SDL_RELEASED, &alt);
+	}
+	return EMU_SUCCESS;
+}
+
+int handlePassThru(int x, int y)
+{
+	// Not working properly yet.
+//	int mouseX, mouseY;
+//	int mouseState = SDL_GetMouseState(&mouseX, &mouseY);
+//	SDL_PrivateMouseMotion(0, 0, x, y);
+//	SDL_PrivateMouseButton(SDL_PRESSED, SDL_BUTTON_LEFT, x, y);
+//	SDL_PrivateMouseButton(SDL_RELEASED, SDL_BUTTON_LEFT, x, y);
+//	SDL_PrivateMouseMotion(0, 0, mouseX, mouseY);
+	return EMU_UNHANDLED;
+}
+
 SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 				int width, int height, int bpp, Uint32 flags)
 {
@@ -290,9 +437,19 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 			SDL_SetError("Cannot create window: %s", strerror(errno));
 			return NULL;
 		}
+
+		char groupName[256] = {0};
+		snprintf(groupName, 256, "sdl-%dx%dx%d-%u", width, height, bpp, time(NULL));
+		rc = screen_create_window_group(screenWindow, groupName);
+		if (rc) {
+			SDL_SetError("Cannot set window group: %s", strerror(errno));
+			screen_destroy_window(screenWindow);
+			return NULL;
+		}
 	} else {
 		if (current->hwdata)
 			SDL_free(current->hwdata);
+		emulate_shutdown(_priv->emu_context);
 		screen_destroy_window_buffers(_priv->screenWindow);
 		screenWindow = _priv->screenWindow;
 	}
@@ -381,6 +538,12 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 		SDL_SetError("Cannot get stride: %s", strerror(errno));
 		return NULL;
 	}
+
+	struct emu_callbacks callbacks = {
+		handleKey, handleDPad, handleTouch, handleMouseButton, handlePassThru
+	};
+	emulate_initialize(&_priv->emu_context, _priv->screenContext, callbacks);
+	emulate_loadcontrols(_priv->emu_context, "sdl-controls.txt");
 
 	_priv->frontBuffer = windowBuffer[0];
 	_priv->screenWindow = screenWindow;
@@ -529,6 +692,7 @@ static void PLAYBOOK_UpdateRects(_THIS, int numrects, SDL_Rect *rects)
 		dirtyRects[index+3] = rects[i].y + rects[i].h;
 		index += 4;
 	}
+
 	screen_post_window(_priv->screenWindow, _priv->frontBuffer, numrects, dirtyRects, 0);
 #if 0
 	static int dirtyRects[256*4];
@@ -608,6 +772,10 @@ void PLAYBOOK_VideoQuit(_THIS)
 		screen_destroy_window_buffers(_priv->screenWindow);
 		screen_destroy_window(_priv->screenWindow);
 	}
+	screen_stop_events(_priv->screenContext);
 	screen_destroy_event(_priv->screenEvent);
 	screen_destroy_context(_priv->screenContext);
+	bps_shutdown();
+	emulate_shutdown(_priv->emu_context);
+	this->screen = 0;
 }
