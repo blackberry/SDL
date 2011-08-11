@@ -543,7 +543,7 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 		handleKey, handleDPad, handleTouch, handleMouseButton, handlePassThru
 	};
 	emulate_initialize(&_priv->emu_context, _priv->screenContext, callbacks);
-	emulate_loadcontrols(_priv->emu_context, "sdl-controls.txt");
+	emulate_loadcontrols(_priv->emu_context, "sdl-controls.xml");
 
 	_priv->frontBuffer = windowBuffer[0];
 	_priv->screenWindow = screenWindow;
