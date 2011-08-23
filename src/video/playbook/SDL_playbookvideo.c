@@ -49,6 +49,7 @@
 #include <bps/navigator.h>
 
 #include "emulate.h"
+#include <unistd.h>
 #include <time.h>
 
 #include "SDL_playbookvideo.h"
@@ -338,7 +339,6 @@ int handleDPad(int angle, int event)
 
 int handleTouch(int dx, int dy)
 {
-	fprintf(stderr, "Touch: %d,%d\n", dx, dy);
 	SDL_PrivateMouseMotion(SDL_GetMouseState(0, 0), 1, dx, dy);
 	return EMU_SUCCESS;
 }
@@ -389,38 +389,39 @@ int handleMouseButton(int button, int mask, int event)
 	alt.scancode = 56;
 	alt.sym = SDLK_LALT;
 
-	if (mask & EMU_SHIFT) {
-		SDL_PrivateKeyboard(SDL_PRESSED, &shift);
-	}
-	if (mask & EMU_CTRL) {
-		SDL_PrivateKeyboard(SDL_PRESSED, &ctrl);
-	}
-	if (mask & EMU_ALT) {
-		SDL_PrivateKeyboard(SDL_PRESSED, &alt);
+	if (sdlEvent == SDL_PRESSED) {
+		if (mask & EMU_SHIFT) {
+			SDL_PrivateKeyboard(SDL_PRESSED, &shift);
+		}
+		if (mask & EMU_CTRL) {
+			SDL_PrivateKeyboard(SDL_PRESSED, &ctrl);
+		}
+		if (mask & EMU_ALT) {
+			SDL_PrivateKeyboard(SDL_PRESSED, &alt);
+		}
 	}
 	SDL_PrivateMouseButton(sdlEvent, sdlButton, mouseX, mouseY);
-	if (mask & EMU_SHIFT) {
-		SDL_PrivateKeyboard(SDL_RELEASED, &shift);
-	}
-	if (mask & EMU_CTRL) {
-		SDL_PrivateKeyboard(SDL_RELEASED, &ctrl);
-	}
-	if (mask & EMU_ALT) {
-		SDL_PrivateKeyboard(SDL_RELEASED, &alt);
+	if (sdlEvent == SDL_RELEASED) {
+		if (mask & EMU_SHIFT) {
+			SDL_PrivateKeyboard(SDL_RELEASED, &shift);
+		}
+		if (mask & EMU_CTRL) {
+			SDL_PrivateKeyboard(SDL_RELEASED, &ctrl);
+		}
+		if (mask & EMU_ALT) {
+			SDL_PrivateKeyboard(SDL_RELEASED, &alt);
+		}
 	}
 	return EMU_SUCCESS;
 }
 
-int handlePassThru(int x, int y)
+int handleTap()
 {
-	// Not working properly yet.
-//	int mouseX, mouseY;
-//	int mouseState = SDL_GetMouseState(&mouseX, &mouseY);
-//	SDL_PrivateMouseMotion(0, 0, x, y);
-//	SDL_PrivateMouseButton(SDL_PRESSED, SDL_BUTTON_LEFT, x, y);
-//	SDL_PrivateMouseButton(SDL_RELEASED, SDL_BUTTON_LEFT, x, y);
-//	SDL_PrivateMouseMotion(0, 0, mouseX, mouseY);
-	return EMU_UNHANDLED;
+	int mouseX, mouseY;
+	SDL_GetMouseState(&mouseX, &mouseY);
+	SDL_PrivateMouseButton(SDL_PRESSED, SDL_BUTTON_LEFT, mouseX, mouseY);
+	SDL_PrivateMouseButton(SDL_RELEASED, SDL_BUTTON_LEFT, mouseX, mouseY);
+	return EMU_SUCCESS;
 }
 
 SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
@@ -540,10 +541,20 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 	}
 
 	struct emu_callbacks callbacks = {
-		handleKey, handleDPad, handleTouch, handleMouseButton, handlePassThru
+		handleKey, handleDPad, handleTouch, handleMouseButton, handleTap
 	};
 	emulate_initialize(&_priv->emu_context, _priv->screenContext, callbacks);
-	emulate_loadcontrols(_priv->emu_context, "sdl-controls.xml");
+	if (emulate_loadcontrols(_priv->emu_context, "sdl-controls.xml") != EMU_SUCCESS) {
+		char cwd[256];
+		if (getcwd(cwd, 256) != NULL) {
+			rc = chdir("app/native");
+			if (!rc) {
+				emulate_loadcontrols(_priv->emu_context, "sdl-controls.xml");
+			}
+			chdir(cwd);
+		}
+	}
+	emulate_showlabels(_priv->emu_context, screenWindow);
 
 	_priv->frontBuffer = windowBuffer[0];
 	_priv->screenWindow = screenWindow;

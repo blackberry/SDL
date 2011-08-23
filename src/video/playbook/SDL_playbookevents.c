@@ -668,7 +668,7 @@ void handleNavigatorEvent(_THIS, bps_event_t *event)
 	switch (bps_event_get_code(event))
 	{
 	case NAV_INVOKE:
-		fprintf(stderr, "Navigator invoke\n");
+		//fprintf(stderr, "Navigator invoke\n");
 		break;
 	case NAV_EXIT:
 		SDL_PrivateQuit(); // We can't stop it from closing anyway
@@ -678,13 +678,16 @@ void handleNavigatorEvent(_THIS, bps_event_t *event)
 		nav_window_state_t state = nav_event_get_window_state(event);
 		switch (state) {
 		case NAV_WINDOW_FULLSCREEN:
-			fprintf(stderr, "Fullscreen\n");
+			SDL_PrivateAppActive(1, (SDL_APPACTIVE|SDL_APPINPUTFOCUS|SDL_APPMOUSEFOCUS));
+			//fprintf(stderr, "Fullscreen\n");
 			break;
 		case NAV_WINDOW_THUMBNAIL:
-			fprintf(stderr, "Thumbnail\n"); // TODO: Consider pausing?
+			SDL_PrivateAppActive(0, (SDL_APPINPUTFOCUS|SDL_APPMOUSEFOCUS));
+			//fprintf(stderr, "Thumbnail\n"); // TODO: Consider pausing?
 			break;
 		case NAV_WINDOW_INVISIBLE:
-			fprintf(stderr, "Invisible\n"); // TODO: Consider pausing?
+			SDL_PrivateAppActive(0, (SDL_APPACTIVE|SDL_APPINPUTFOCUS|SDL_APPMOUSEFOCUS));
+			//fprintf(stderr, "Invisible\n"); // TODO: Consider pausing?
 			break;
 		}
 	}
@@ -693,28 +696,28 @@ void handleNavigatorEvent(_THIS, bps_event_t *event)
 		emulate_swipedown(_priv->emu_context, _priv->screenWindow);
 		break;
 	case NAV_SWIPE_START:
-		fprintf(stderr, "Swipe start\n");
+		//fprintf(stderr, "Swipe start\n");
 		break;
 	case NAV_LOW_MEMORY:
-		fprintf(stderr, "Low memory\n"); // TODO: Anything we can do?
+		//fprintf(stderr, "Low memory\n"); // TODO: Anything we can do?
 		break;
 	case NAV_ORIENTATION_CHECK:
-		fprintf(stderr, "Orientation check\n");
+		//fprintf(stderr, "Orientation check\n");
 		break;
 	case NAV_ORIENTATION:
-		fprintf(stderr, "Navigator orientation\n");
+		//fprintf(stderr, "Navigator orientation\n");
 		break;
 	case NAV_BACK:
-		fprintf(stderr, "Navigator back\n");
+		//fprintf(stderr, "Navigator back\n");
 		break;
 	case NAV_WINDOW_ACTIVE:
-		fprintf(stderr, "Window active\n"); // TODO: Handle?
+		//fprintf(stderr, "Window active\n"); // TODO: Handle?
 		break;
 	case NAV_WINDOW_INACTIVE:
-		fprintf(stderr, "Window inactive\n"); // TODO: Handle?
+		//fprintf(stderr, "Window inactive\n"); // TODO: Handle?
 		break;
 	default:
-		fprintf(stderr, "Unknown navigator event: %d\n", bps_event_get_code(event));
+		//fprintf(stderr, "Unknown navigator event: %d\n", bps_event_get_code(event));
 		break;
 	}
 }
