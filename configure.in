@@ -1137,6 +1137,19 @@ AC_HELP_STRING([--enable-video-photon], [use QNX Photon video driver [[default=y
     fi
 }
 
+dnl Set up the Playbook video driver if enabled
+CheckPLAYBOOK()
+{
+    AC_ARG_ENABLE(video-playbook,
+AC_HELP_STRING([--enable-video-playbook], [use playbook video driver [[default=yes]]]),
+                  , enable_video_playbook=yes)
+    if test x$enable_video_playbook = xyes; then
+        AC_DEFINE(SDL_VIDEO_DRIVER_PLAYBOOK)
+        SOURCES="$SOURCES $srcdir/src/video/playbook/*.c"
+        have_video=yes
+    fi
+}
+
 dnl Set up the BWindow video driver if enabled
 CheckBWINDOW()
 {
@@ -2430,6 +2443,7 @@ case "$host" in
         CheckDLOPEN
         CheckNAS
         CheckPHOTON
+        CheckPLAYBOOK
         CheckX11
         CheckOpenGLX11
         CheckPTHREAD
