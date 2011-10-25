@@ -33,7 +33,7 @@
 #include <bps/event.h>
 #include <bps/orientation.h>
 #include <bps/navigator.h>
-#include "emulate.h"
+#include "touchcontroloverlay.h"
 
 static SDL_keysym Playbook_Keycodes[256];
 static SDLKey *Playbook_specialsyms;
@@ -667,53 +667,53 @@ void handleNavigatorEvent(_THIS, bps_event_t *event)
 {
 	switch (bps_event_get_code(event))
 	{
-	case NAV_INVOKE:
+	case NAVIGATOR_INVOKE:
 		//fprintf(stderr, "Navigator invoke\n");
 		break;
-	case NAV_EXIT:
+	case NAVIGATOR_EXIT:
 		SDL_PrivateQuit(); // We can't stop it from closing anyway
 		break;
-	case NAV_WINDOW_STATE:
+	case NAVIGATOR_WINDOW_STATE:
 	{
-		nav_window_state_t state = nav_event_get_window_state(event);
+		navigator_window_state_t state = navigator_event_get_window_state(event);
 		switch (state) {
-		case NAV_WINDOW_FULLSCREEN:
+		case NAVIGATOR_WINDOW_FULLSCREEN:
 			SDL_PrivateAppActive(1, (SDL_APPACTIVE|SDL_APPINPUTFOCUS|SDL_APPMOUSEFOCUS));
 			//fprintf(stderr, "Fullscreen\n");
 			break;
-		case NAV_WINDOW_THUMBNAIL:
+		case NAVIGATOR_WINDOW_THUMBNAIL:
 			SDL_PrivateAppActive(0, (SDL_APPINPUTFOCUS|SDL_APPMOUSEFOCUS));
 			//fprintf(stderr, "Thumbnail\n"); // TODO: Consider pausing?
 			break;
-		case NAV_WINDOW_INVISIBLE:
+		case NAVIGATOR_WINDOW_INVISIBLE:
 			SDL_PrivateAppActive(0, (SDL_APPACTIVE|SDL_APPINPUTFOCUS|SDL_APPMOUSEFOCUS));
 			//fprintf(stderr, "Invisible\n"); // TODO: Consider pausing?
 			break;
 		}
 	}
 		break;
-	case NAV_SWIPE_DOWN:
-		emulate_swipedown(_priv->emu_context, _priv->screenWindow);
+	case NAVIGATOR_SWIPE_DOWN:
+		tco_swipedown(_priv->emu_context, _priv->screenWindow);
 		break;
-	case NAV_SWIPE_START:
+	case NAVIGATOR_SWIPE_START:
 		//fprintf(stderr, "Swipe start\n");
 		break;
-	case NAV_LOW_MEMORY:
+	case NAVIGATOR_LOW_MEMORY:
 		//fprintf(stderr, "Low memory\n"); // TODO: Anything we can do?
 		break;
-	case NAV_ORIENTATION_CHECK:
+	case NAVIGATOR_ORIENTATION_CHECK:
 		//fprintf(stderr, "Orientation check\n");
 		break;
-	case NAV_ORIENTATION:
+	case NAVIGATOR_ORIENTATION:
 		//fprintf(stderr, "Navigator orientation\n");
 		break;
-	case NAV_BACK:
+	case NAVIGATOR_BACK:
 		//fprintf(stderr, "Navigator back\n");
 		break;
-	case NAV_WINDOW_ACTIVE:
+	case NAVIGATOR_WINDOW_ACTIVE:
 		//fprintf(stderr, "Window active\n"); // TODO: Handle?
 		break;
-	case NAV_WINDOW_INACTIVE:
+	case NAVIGATOR_WINDOW_INACTIVE:
 		//fprintf(stderr, "Window inactive\n"); // TODO: Handle?
 		break;
 	default:
@@ -757,7 +757,7 @@ void handleScreenEvent(_THIS, bps_event_t *event)
 		case SCREEN_EVENT_MTOUCH_TOUCH:
 		case SCREEN_EVENT_MTOUCH_MOVE:
 		case SCREEN_EVENT_MTOUCH_RELEASE:
-			emulate_touch(this->hidden->emu_context, se);
+			tco_touch(this->hidden->emu_context, se);
 			break;
 	}
 }
@@ -770,19 +770,14 @@ PLAYBOOK_PumpEvents(_THIS)
 	bps_get_event(&event, 0);
 	while (event)
 	{
-		switch (bps_event_get_domain(event))
-		{
-		case BPS_EVENT_DOMAIN_NAVIGATOR:
+		int domain = bps_event_get_domain(event);
+		if (domain == navigator_get_domain()) {
 			handleNavigatorEvent(this, event);
-			break;
-		case BPS_EVENT_DOMAIN_SCREEN:
-			handleScreenEvent(this, event);
-			break;
-		default:
-			fprintf(stderr, "Unknown event domain: %d\n", bps_event_get_domain(event));
-			break;
 		}
-		bps_event_destroy(event);
+		else if (domain == screen_get_domain()) {
+			handleScreenEvent(this, event);
+		}
+
 		bps_get_event(&event, 0);
 	}
 #else
