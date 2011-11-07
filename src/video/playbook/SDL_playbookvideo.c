@@ -469,6 +469,43 @@ int handleTouchScreen(int x, int y, int tap, int hold)
 	return TCO_SUCCESS;
 }
 
+static void initializeOverlay(_THIS, screen_window_t screenWindow)
+{
+	int loaded = 0;
+	FILE *file = 0;
+	const char *filename = "sdl-controls.xml";
+	struct tco_callbacks callbacks = {
+		handleKey, handleDPad, handleTouch, handleMouseButton, handleTap, handleTouchScreen
+	};
+	tco_initialize(&_priv->emu_context, _priv->screenContext, callbacks);
+
+	// Load controls from current working directory
+	file = fopen(filename, "r");
+	if (file) {
+		fclose(file);
+		if (tco_loadcontrols(_priv->emu_context, filename) == TCO_SUCCESS)
+			loaded = 1;
+	}
+
+	// Load controls from app/native
+	if (!loaded) {
+		char pathAndFilename[256];
+		snprintf(pathAndFilename, 256, "app/native/%s", filename);
+		file = fopen(pathAndFilename, "r");
+		if (file) {
+			fclose(file);
+			if (tco_loadcontrols(_priv->emu_context, pathAndFilename) == TCO_SUCCESS)
+				loaded = 1;
+		}
+	}
+
+	// Set up default controls
+	if (!loaded) {
+		tco_loadcontrols_default(_priv->emu_context);
+	}
+	tco_showlabels(_priv->emu_context, screenWindow);
+}
+
 SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 				int width, int height, int bpp, Uint32 flags)
 {
@@ -585,21 +622,7 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 		return NULL;
 	}
 
-	struct tco_callbacks callbacks = {
-		handleKey, handleDPad, handleTouch, handleMouseButton, handleTap, handleTouchScreen
-	};
-	tco_initialize(&_priv->emu_context, _priv->screenContext, callbacks);
-	if (tco_loadcontrols(_priv->emu_context, "sdl-controls.xml") != TCO_SUCCESS) {
-		char cwd[256];
-		if (getcwd(cwd, 256) != NULL) {
-			rc = chdir("app/native");
-			if (!rc) {
-				tco_loadcontrols(_priv->emu_context, "sdl-controls.xml");
-			}
-			chdir(cwd);
-		}
-	}
-	tco_showlabels(_priv->emu_context, screenWindow);
+	initializeOverlay(this, screenWindow);
 
 	_priv->frontBuffer = windowBuffer[0];
 	_priv->screenWindow = screenWindow;
