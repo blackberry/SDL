@@ -489,13 +489,15 @@ static void initializeOverlay(_THIS, screen_window_t screenWindow)
 
 	// Load controls from app/native
 	if (!loaded) {
-		char pathAndFilename[256];
-		snprintf(pathAndFilename, 256, "app/native/%s", filename);
-		file = fopen(pathAndFilename, "r");
-		if (file) {
-			fclose(file);
-			if (tco_loadcontrols(_priv->emu_context, pathAndFilename) == TCO_SUCCESS)
-				loaded = 1;
+		char cwd[256];
+		if (getcwd(cwd, 256) != NULL && chdir("app/native")) {
+			file = fopen(filename, "r");
+			if (file) {
+				fclose(file);
+				if (tco_loadcontrols(_priv->emu_context, filename) == TCO_SUCCESS)
+					loaded = 1;
+			}
+			chdir(cwd);
 		}
 	}
 
