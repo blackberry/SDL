@@ -48,6 +48,22 @@ struct SDL_PrivateVideoData {
     int pitch;
 
     SDL_Rect *SDL_modelist[SDL_NUMMODES+1];
+
+    // For 8bit video driver
+    struct {
+    	void *eglDisplay;
+    	void *eglContext;
+    	void *eglSurface;
+    } eglInfo;
+
+    struct {
+    	unsigned int shader;
+    	int positionAttrib;
+    	int texcoordAttrib;
+    	unsigned int palette;
+    	unsigned int screen[2];
+    	int writableScreen;
+    } glInfo;
 };
 
 #endif /* _SDL_playbookvideo_h */

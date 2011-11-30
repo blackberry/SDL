@@ -53,7 +53,11 @@
 #include <time.h>
 
 #include "SDL_playbookvideo.h"
+#include "SDL_playbookvideo_c.h"
+#include "SDL_playbookvideo_8bit_c.h"
 #include "SDL_playbookevents_c.h"
+#include "SDL_playbookhw_c.h"
+#include "SDL_playbooktouch_c.h"
 #include "SDL_playbookyuv_c.h"
 
 #include <string.h>
@@ -61,27 +65,6 @@
 #include <stdio.h>
 
 #define PLAYBOOKVID_DRIVER_NAME "playbook"
-
-/* Initialization/Query functions */
-static int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat);
-static SDL_Rect **PLAYBOOK_ListModes(_THIS, SDL_PixelFormat *format, Uint32 flags);
-static SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current, int width, int height, int bpp, Uint32 flags);
-static int PLAYBOOK_SetColors(_THIS, int firstcolor, int ncolors, SDL_Color *colors);
-static void PLAYBOOK_VideoQuit(_THIS);
-
-/* Hardware surface functions */
-static int PLAYBOOK_AllocHWSurface(_THIS, SDL_Surface *surface);
-static int PLAYBOOK_LockHWSurface(_THIS, SDL_Surface *surface);
-static void PLAYBOOK_UnlockHWSurface(_THIS, SDL_Surface *surface);
-static void PLAYBOOK_FreeHWSurface(_THIS, SDL_Surface *surface);
-static int PLAYBOOK_FlipHWSurface(_THIS, SDL_Surface *surface);
-
-static int PLAYBOOK_FillHWRect(_THIS, SDL_Surface *dst, SDL_Rect *rect, Uint32 color);
-
-/* etc. */
-static void PLAYBOOK_UpdateRects(_THIS, int numrects, SDL_Rect *rects);
-
-/* PLAYBOOK driver bootstrap functions */
 
 static int PLAYBOOK_Available(void)
 {
@@ -141,6 +124,20 @@ VideoBootStrap PLAYBOOK_bootstrap = {
 	PLAYBOOKVID_DRIVER_NAME, "SDL PlayBook (libscreen) video driver",
 	PLAYBOOK_Available, PLAYBOOK_CreateDevice
 };
+
+int PLAYBOOK_8Bit_VideoInit(_THIS, SDL_PixelFormat *vformat)
+{
+	if (PLAYBOOK_VideoInit(this, vformat) == -1)
+		return -1;
+	else {
+		/* Determine the screen depth (use default 32-bit depth) */
+		vformat->BitsPerPixel = 8;
+		vformat->BytesPerPixel = 1;
+		this->info.blit_fill = 0;
+		this->info.hw_available = 0;
+	}
+	return 0;
+}
 
 int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 {
@@ -269,253 +266,11 @@ SDL_Rect **PLAYBOOK_ListModes(_THIS, SDL_PixelFormat *format, Uint32 flags)
 	}
 }
 
-struct private_hwdata {
-	screen_pixmap_t pixmap;
-	screen_window_t window;
-	screen_buffer_t front;
-	screen_buffer_t back;
-};
-
-int handleKey(int sym, int mod, int scancode, uint16_t unicode, int event)
-{
-	int sdlEvent;
-	switch (event)
-	{
-	case TCO_KB_DOWN:
-		sdlEvent = SDL_PRESSED;
-		break;
-	case TCO_KB_UP:
-		sdlEvent = SDL_RELEASED;
-		break;
-	default:
-		return TCO_UNHANDLED;
-	}
-
-	SDL_keysym keysym;
-	keysym.sym = sym;
-	keysym.mod = mod;
-	keysym.scancode = scancode;
-	keysym.unicode = unicode;
-	SDL_PrivateKeyboard(sdlEvent, &keysym);
-	return TCO_SUCCESS;
-}
-
-int handleDPad(int angle, int event)
-{
-	static int pressed[4] = {0, 0, 0, 0}; // Up, Down, Right, Left
-	int tmp[4] = {0,0,0,0};
-	switch (event)
-	{
-	case TCO_KB_DOWN:
-		{
-			if (angle <= -158 || angle >= 158) {
-				// Left: -180 to -158, 158 to 180
-				tmp[3] = 1;
-			} else if (angle <= -103) {
-				tmp[3] = 1;
-				tmp[0] = 1;
-				// Up-Left: -157 to -103
-			} else if (angle <= -68) {
-				tmp[0] = 1;
-				// Up: -68 to -102
-			} else if (angle <= 23) {
-				tmp[0] = 1;
-				tmp[2] = 1;
-				// Up-Right: -23 to -67
-			} else if (angle <= 22) {
-				tmp[2] = 1;
-				// Right: -22 to 22
-			} else if (angle <= 67) {
-				tmp[1] = 1;
-				tmp[2] = 1;
-				// Down-Right: 23 to 67
-			} else if (angle <= 102) {
-				tmp[1] = 1;
-				// Down: 68 to 102
-			} else if (angle <= 157) {
-				tmp[1] = 1;
-				tmp[3] = 1;
-				// Down-Left: 103 to 157
-			} else {
-				fprintf(stderr, "Unknown dpad angle: %d\n", angle);
-				return TCO_UNHANDLED;
-			}
-		}
-		break;
-	case TCO_KB_UP:
-		break;
-	default:
-		return TCO_UNHANDLED;
-	}
-
-	int sdlState = SDL_PRESSED;
-	SDL_keysym keysym;
-	int scancodes[4] = {72, 75, 77, 80}; // From DosBox, keyboard.cpp
-	int i;
-	for (i=0; i<4; i++) {
-		if (pressed[i] != tmp[i]) {
-			if (tmp[i]) {
-				sdlState = SDL_PRESSED;
-			} else {
-				sdlState = SDL_RELEASED;
-			}
-			keysym.sym = SDLK_UP + i;
-			keysym.scancode = scancodes[i];
-			SDL_PrivateKeyboard(sdlState, &keysym);
-			pressed[i] = tmp[i];
-		}
-	}
-	return TCO_SUCCESS;
-}
-
-int handleTouch(int dx, int dy)
-{
-	SDL_PrivateMouseMotion(SDL_GetMouseState(0, 0), 1, dx, dy);
-	return TCO_SUCCESS;
-}
-
-int handleMouseButton(int button, int mask, int event)
-{
-	int mouseX, mouseY;
-	int sdlEvent;
-	int sdlButton;
-
-	switch (event)
-	{
-	case TCO_MOUSE_BUTTON_UP:
-		sdlEvent = SDL_RELEASED;
-		break;
-	case TCO_MOUSE_BUTTON_DOWN:
-		sdlEvent = SDL_PRESSED;
-		break;
-	default:
-		fprintf(stderr, "No mouse button event?? (%d)\n", event);
-		sdlEvent = SDL_PRESSED;
-		break;
-	}
-
-	switch (button)
-	{
-	case TCO_MOUSE_LEFT_BUTTON:
-		sdlButton = SDL_BUTTON_LEFT;
-		break;
-	case TCO_MOUSE_RIGHT_BUTTON:
-		sdlButton = SDL_BUTTON_RIGHT;
-		break;
-	case TCO_MOUSE_MIDDLE_BUTTON:
-		sdlButton = SDL_BUTTON_MIDDLE;
-		break;
-	default:
-		fprintf(stderr, "No mouse button?? (%d)\n", button);
-		sdlButton = SDL_BUTTON_LEFT;
-		break;
-	}
-	SDL_GetMouseState(&mouseX, &mouseY);
-
-	SDL_keysym shift, ctrl, alt;
-	shift.scancode = 42;
-	shift.sym = SDLK_LSHIFT;
-	ctrl.scancode = 29;
-	ctrl.sym = SDLK_LCTRL;
-	alt.scancode = 56;
-	alt.sym = SDLK_LALT;
-
-	if (sdlEvent == SDL_PRESSED) {
-		if (mask & TCO_SHIFT) {
-			SDL_PrivateKeyboard(SDL_PRESSED, &shift);
-		}
-		if (mask & TCO_CTRL) {
-			SDL_PrivateKeyboard(SDL_PRESSED, &ctrl);
-		}
-		if (mask & TCO_ALT) {
-			SDL_PrivateKeyboard(SDL_PRESSED, &alt);
-		}
-	}
-	SDL_PrivateMouseButton(sdlEvent, sdlButton, mouseX, mouseY);
-	if (sdlEvent == SDL_RELEASED) {
-		if (mask & TCO_SHIFT) {
-			SDL_PrivateKeyboard(SDL_RELEASED, &shift);
-		}
-		if (mask & TCO_CTRL) {
-			SDL_PrivateKeyboard(SDL_RELEASED, &ctrl);
-		}
-		if (mask & TCO_ALT) {
-			SDL_PrivateKeyboard(SDL_RELEASED, &alt);
-		}
-	}
-	return TCO_SUCCESS;
-}
-
-int handleTap()
-{
-	int mouseX, mouseY;
-	SDL_GetMouseState(&mouseX, &mouseY);
-	SDL_PrivateMouseButton(SDL_PRESSED, SDL_BUTTON_LEFT, mouseX, mouseY);
-	SDL_PrivateMouseButton(SDL_RELEASED, SDL_BUTTON_LEFT, mouseX, mouseY);
-	return TCO_SUCCESS;
-}
-
-int handleTouchScreen(int x, int y, int tap, int hold)
-{
-	if (tap) {
-		SDL_PrivateMouseButton(SDL_PRESSED, SDL_BUTTON_LEFT, x, y);
-		SDL_PrivateMouseButton(SDL_RELEASED, SDL_BUTTON_LEFT, x, y);
-	} else if (hold) {
-		SDL_PrivateMouseButton(SDL_PRESSED, SDL_BUTTON_RIGHT, x, y);
-		SDL_PrivateMouseButton(SDL_RELEASED, SDL_BUTTON_RIGHT, x, y);
-	} else {
-		SDL_PrivateMouseMotion(SDL_GetMouseState(0, 0), 0, x, y);
-	}
-	return TCO_SUCCESS;
-}
-
-static void initializeOverlay(_THIS, screen_window_t screenWindow)
-{
-	int loaded = 0;
-	FILE *file = 0;
-	const char *filename = "sdl-controls.xml";
-	struct tco_callbacks callbacks = {
-		handleKey, handleDPad, handleTouch, handleMouseButton, handleTap, handleTouchScreen
-	};
-	tco_initialize(&_priv->emu_context, _priv->screenContext, callbacks);
-
-	// Load controls from current working directory
-	file = fopen(filename, "r");
-	if (file) {
-		fclose(file);
-		if (tco_loadcontrols(_priv->emu_context, filename) == TCO_SUCCESS)
-			loaded = 1;
-	}
-
-	// Load controls from app/native
-	if (!loaded) {
-		char cwd[256];
-		if (getcwd(cwd, 256) != NULL && chdir("app/native")) {
-			file = fopen(filename, "r");
-			if (file) {
-				fclose(file);
-				if (tco_loadcontrols(_priv->emu_context, filename) == TCO_SUCCESS)
-					loaded = 1;
-			}
-			chdir(cwd);
-		}
-	}
-
-	// Set up default controls
-	if (!loaded) {
-		tco_loadcontrols_default(_priv->emu_context);
-	}
-	tco_showlabels(_priv->emu_context, screenWindow);
-}
-
-SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
-				int width, int height, int bpp, Uint32 flags)
+screen_window_t PLAYBOOK_CreateWindow(_THIS, SDL_Surface *current,
+		int width, int height, int bpp)
 {
 	screen_window_t screenWindow;
 	int rc = 0;
-	fprintf(stderr, "SetVideoMode: %dx%d %dbpp\n", width, height, bpp);
-	if (width == 640 && height == 400)
-		height = 480;
 	if (!_priv->screenWindow) {
 		rc = screen_create_window(&screenWindow, _priv->screenContext);
 		if (rc) {
@@ -555,6 +310,21 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 		return NULL;
 	}
 
+	return screenWindow;
+}
+
+SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
+				int width, int height, int bpp, Uint32 flags)
+{
+//	fprintf(stderr, "SetVideoMode: %dx%d %dbpp\n", width, height, bpp);
+	if (width == 640 && height == 400)
+		height = 480;
+	screen_window_t screenWindow = PLAYBOOK_CreateWindow(this, current, width, height, bpp);
+	if (screenWindow == NULL)
+		return NULL;
+
+	int rc;
+	int format = 0;
 	int sizeOfWindow[2] = {1024, 600};
 	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_SIZE, sizeOfWindow);
 	if (rc) {
@@ -571,8 +341,12 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 		return NULL;
 	}
 
-	int format = 0;
 	switch (bpp) {
+	case 8:
+		fprintf(stderr, "Unsupported bpp: set pb-8bit environment variable!\n");
+		format = SCREEN_FORMAT_BYTE;
+		return NULL;
+		break;
 	case 16:
 		SDL_ReallocFormat(current, 16, 0x0000f800, 0x0000007e0, 0x0000001f, 0);
 		format = SCREEN_FORMAT_RGB565;
@@ -650,119 +424,7 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 	return current;
 }
 
-static int PLAYBOOK_AllocHWSurface(_THIS, SDL_Surface *surface)
-{
-	if (surface->hwdata != NULL) {
-		fprintf(stderr, "Surface already has hwdata\n");
-		return -1;
-	}
-
-	surface->hwdata = SDL_malloc(sizeof(struct private_hwdata));
-	if (surface->hwdata == NULL) {
-		SDL_OutOfMemory();
-		return -1;
-	}
-
-	int rc = screen_create_pixmap( &surface->hwdata->pixmap, _priv->screenContext);
-	if (rc) {
-		fprintf(stderr, "Failed to create HW surface: screen_create_pixmap returned %s\n", strerror(errno));
-		goto fail1;
-	}
-
-	int size[2] = {surface->w, surface->h};
-	rc = screen_set_pixmap_property_iv(surface->hwdata->pixmap, SCREEN_PROPERTY_BUFFER_SIZE, size);
-	if (rc) {
-		fprintf(stderr, "Failed to set SCREEN_PROPERTY_BUFFER_SIZE: screen_set_pixmap_property_iv returned %s\n", strerror(errno));
-		goto fail1;
-	}
-
-	int format = SCREEN_FORMAT_RGBA8888;
-	rc = screen_set_pixmap_property_iv(surface->hwdata->pixmap, SCREEN_PROPERTY_FORMAT, &format);
-	if (rc) {
-		fprintf(stderr, "Failed to set SCREEN_PROPERTY_FORMAT: screen_set_pixmap_property_iv returned %s\n", strerror(errno));
-		goto fail1;
-	}
-
-	rc = screen_create_pixmap_buffer(surface->hwdata->pixmap);
-	if (rc) {
-		fprintf(stderr, "Failed to allocate HW surface: screen_create_pixmap_buffer returned %s\n", strerror(errno));
-		goto fail2;
-	}
-
-	surface->flags |= SDL_HWSURFACE;
-	surface->flags |= SDL_PREALLOC;
-
-	return 0;
-
-fail2:
-	screen_destroy_pixmap(surface->hwdata->pixmap);
-fail1:
-	SDL_free(surface->hwdata);
-	surface->hwdata = 0;
-
-	return -1;
-}
-static void PLAYBOOK_FreeHWSurface(_THIS, SDL_Surface *surface)
-{
-	if (surface->hwdata) {
-		screen_destroy_pixmap_buffer(surface->hwdata->pixmap);
-		screen_destroy_pixmap(surface->hwdata->pixmap);
-	}
-	return;
-}
-
-static int PLAYBOOK_LockHWSurface(_THIS, SDL_Surface *surface)
-{
-	/* Currently does nothing */
-	return(0);
-}
-
-static void PLAYBOOK_UnlockHWSurface(_THIS, SDL_Surface *surface)
-{
-	/* Currently does nothing */
-	return;
-}
-
-static int PLAYBOOK_FlipHWSurface(_THIS, SDL_Surface *surface)
-{
-	// FIXME: This doesn't work properly yet. It flashes black, I think the new render buffers are wrong.
-	static int fullRect[] = {0, 0, 1024, 600};
-	//screen_flush_blits(_priv->screenContext, 0);
-	int result = screen_post_window(_priv->screenWindow, surface->hwdata->front, 1, fullRect, 0);
-
-	screen_buffer_t windowBuffer[2];
-	int rc = screen_get_window_property_pv(_priv->screenWindow,
-			SCREEN_PROPERTY_RENDER_BUFFERS, (void**)&windowBuffer);
-	if (rc) {
-		SDL_SetError("Cannot get window render buffers: %s", strerror(errno));
-		return NULL;
-	}
-
-	rc = screen_get_buffer_property_pv(windowBuffer[0], SCREEN_PROPERTY_POINTER, &_priv->pixels);
-	if (rc) {
-		SDL_SetError("Cannot get buffer pointer: %s", strerror(errno));
-		return NULL;
-	}
-	surface->hwdata->front = windowBuffer[0];
-	surface->pixels = _priv->pixels;
-	return 0;
-}
-
-static int PLAYBOOK_FillHWRect(_THIS, SDL_Surface *dst, SDL_Rect *rect, Uint32 color)
-{
-	if (dst->flags & SDL_HWSURFACE) {
-		int attribs[] = {SCREEN_BLIT_DESTINATION_X, rect->x,
-						SCREEN_BLIT_DESTINATION_Y, rect->y,
-						SCREEN_BLIT_DESTINATION_WIDTH, rect->w,
-						SCREEN_BLIT_DESTINATION_HEIGHT, rect->h,
-						SCREEN_BLIT_COLOR, color,
-						SCREEN_BLIT_END};
-		screen_fill(_priv->screenContext, _priv->frontBuffer, attribs);
-	}
-	return 0;
-}
-
-static void PLAYBOOK_UpdateRects(_THIS, int numrects, SDL_Rect *rects)
+void PLAYBOOK_UpdateRects(_THIS, int numrects, SDL_Rect *rects)
 {
 	static int dirtyRects[256*4];
 	int index = 0, i = 0;
@@ -775,61 +437,6 @@ static void PLAYBOOK_UpdateRects(_THIS, int numrects, SDL_Rect *rects)
 	}
 
 	screen_post_window(_priv->screenWindow, _priv->frontBuffer, numrects, dirtyRects, 0);
-#if 0
-	static int dirtyRects[256*4];
-	int index = 0, i = 0;
-	int y = 0, x = 0, ptr = 0, srcPtr = 0;
-	unsigned char* pixels = (unsigned char*)_priv->pixels;
-	SDL_Surface* src = _priv->surface;
-	if (!_priv->surface) {
-		if (_priv->screenWindow && _priv->frontBuffer) {
-			memset(pixels, 0, _priv->pitch * 600);
-			screen_post_window(_priv->screenWindow, _priv->frontBuffer, numrects, dirtyRects, 0);
-		}
-		return;
-	}
-	unsigned char* srcPixels = (unsigned char*)src->pixels;
-	if (!srcPixels) {
-		fprintf(stderr, "Can't handle palette yet\n");
-		return; // FIXME: Handle palette
-	}
-
-	int rc = screen_get_buffer_property_pv(_priv->frontBuffer, SCREEN_PROPERTY_POINTER, &_priv->pixels);
-	if (rc) {
-		fprintf(stderr, "Cannot get buffer pointer: %s\n", strerror(errno));
-		return;
-	}
-
-	rc = screen_get_buffer_property_iv(_priv->frontBuffer, SCREEN_PROPERTY_STRIDE, &_priv->pitch);
-	if (rc) {
-		fprintf(stderr, "Cannot get stride: %s\n", strerror(errno));
-		return;
-	}
-
-	// FIXME: Bounds, sanity checking, resizing
-	// TODO: Use screen_blit?
-	for (i=0; i<numrects; i++) {
-		dirtyRects[index] = rects[i].x;
-		dirtyRects[index+1] = rects[i].y;
-		dirtyRects[index+2] = rects[i].x + rects[i].w;
-		dirtyRects[index+3] = rects[i].y + rects[i].h;
-
-		for (y = dirtyRects[index+1]; y<dirtyRects[index+3]; y++) {
-			for (x = dirtyRects[index]; x < dirtyRects[index+2]; x++) {
-				ptr = y * _priv->pitch + x * 4;
-				srcPtr = y * src->pitch + x * src->format->BytesPerPixel;
-				pixels[ptr] = srcPixels[srcPtr];
-				pixels[ptr+1] = srcPixels[srcPtr+1];
-				pixels[ptr+2] = srcPixels[srcPtr+2];
-				pixels[ptr+3] = 0xff;
-			}
-		}
-		index += 4;
-	}
-
-	if (_priv->screenWindow && _priv->frontBuffer)
-		screen_post_window(_priv->screenWindow, _priv->frontBuffer, numrects, dirtyRects, 0);
-#endif
 }
 
 int PLAYBOOK_SetColors(_THIS, int firstcolor, int ncolors, SDL_Color *colors)
@@ -845,10 +452,6 @@ int PLAYBOOK_SetColors(_THIS, int firstcolor, int ncolors, SDL_Color *colors)
 // FIXME: Fix up cleanup process
 void PLAYBOOK_VideoQuit(_THIS)
 {
-//	if (_priv->buffer) {
-//		SDL_free(_priv->buffer);
-//		_priv->buffer = 0;
-//	}
 	if (_priv->screenWindow) {
 		screen_destroy_window_buffers(_priv->screenWindow);
 		screen_destroy_window(_priv->screenWindow);

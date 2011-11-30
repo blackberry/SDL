@@ -411,6 +411,7 @@ extern VideoBootStrap AALIB_bootstrap;
 extern VideoBootStrap CACA_bootstrap;
 #endif
 #if SDL_VIDEO_DRIVER_PLAYBOOK
+extern VideoBootStrap PLAYBOOK_8Bit_bootstrap;
 extern VideoBootStrap PLAYBOOK_bootstrap;
 #endif
 #if SDL_VIDEO_DRIVER_DUMMY
