@@ -35,6 +35,7 @@
 #include <bps/navigator.h>
 #include "touchcontroloverlay.h"
 
+#define SDLK_PB_TILDE 160 // Conflicts with SDLK_WORLD_0.
 static SDL_keysym Playbook_Keycodes[256];
 static SDLKey *Playbook_specialsyms;
 
@@ -299,6 +300,8 @@ static int TranslateVKB(int sym, int mods, int flags, int scan, int cap, SDL_key
 	case SDLK_QUOTE:
 		keysym->scancode = 40;
 		break;
+	case SDLK_PB_TILDE:
+		shifted = 1;
 	case SDLK_BACKQUOTE:
 		keysym->scancode = 41;
 		break;
@@ -860,6 +863,9 @@ void PLAYBOOK_InitOSKeymap(_THIS)
 		{
 			Playbook_Keycodes[i].sym = i;
 		}
+
+		// Handle tilde
+		Playbook_Keycodes[126].sym = SDLK_PB_TILDE;
 	}
 
 	{
