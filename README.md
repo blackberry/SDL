@@ -2,6 +2,7 @@
 
 The _**SDL**_ repository holds the sources for Simple DirectMedia Layer, an open-source, cross-platform multimedia library designed to provide a low level API that is often used in open-source games. SDL has been ported to run with the Native SDK for BlackBerry © Tablet OS.
 
+**NOTE**: This port depends on the TouchControlOverlay library, located [here](https://github.com/blackberry/TouchControlOverlay).
 
 **Repository Committers** 
 
