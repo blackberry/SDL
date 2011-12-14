@@ -399,10 +399,10 @@ int main(int argc, char **argv)
     }
 
     /* load the trojan moose images */
-    handle=SDL_RWFromFile("moose.dat", "rb");
+    handle=SDL_RWFromFile("app/native/moose.dat", "rb");
     if (handle==NULL)
     {
-        fprintf(stderr, "Can't find the file moose.dat !\n");
+        fprintf(stderr, "Can't find the file app/native/moose.dat !\n");
         free(RawMooseData);
         quit(2);
     }

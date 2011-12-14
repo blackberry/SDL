@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
 #endif
 
 	/* Do all the drawing work */
-	image = SDL_LoadBMP("sample.bmp");
+	image = SDL_LoadBMP("app/native/sample.bmp");
 	if ( image ) {
 		SDL_Rect dst;
 

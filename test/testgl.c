@@ -17,7 +17,7 @@
 #define SHADED_CUBE
 
 /* Define this to be the name of the logo image to use with -logo */
-#define LOGO_FILE	"icon.bmp"
+#define LOGO_FILE	"app/native/icon.bmp"
 
 /* The SDL_OPENGLBLIT interface is deprecated.
    The code is still available for benchmark purposes though.

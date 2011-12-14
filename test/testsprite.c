@@ -221,7 +221,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Load the sprite */
-	if ( LoadSprite("icon.bmp") < 0 ) {
+	if ( LoadSprite("app/native/icon.bmp") < 0 ) {
 		quit(1);
 	}
 

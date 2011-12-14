@@ -269,7 +269,7 @@ static int setup_test(int argc, char **argv)
         return(0);
     }
 
-    bmp = SDL_LoadBMP("sample.bmp");
+    bmp = SDL_LoadBMP("app/native/sample.bmp");
     if (bmp == NULL)
     {
         fprintf(stderr, "SDL_LoadBMP failed: %s\n", SDL_GetError());

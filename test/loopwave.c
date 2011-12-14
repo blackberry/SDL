@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
 		return(1);
 	}
 	if ( argv[1] == NULL ) {
-		argv[1] = "sample.wav";
+		argv[1] = "app/native/sample.wav";
 	}
 	/* Load the wave file into memory */
 	if ( SDL_LoadWAV(argv[1],

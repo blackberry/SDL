@@ -175,8 +175,8 @@ int main(int argc, char **argv)
 
     if (vidflags & SDL_FULLSCREEN) SDL_ShowCursor (SDL_FALSE);
 
-    if((boat[0] = SDL_LoadBMP("sail.bmp")) == NULL)
-	sdlerr("loading sail.bmp");
+    if((boat[0] = SDL_LoadBMP("app/native/sail.bmp")) == NULL)
+	sdlerr("loading app/native/sail.bmp");
     /* We've chosen magenta (#ff00ff) as colour key for the boat */
     SDL_SetColorKey(boat[0], SDL_SRCCOLORKEY | SDL_RLEACCEL,
 		    SDL_MapRGB(boat[0]->format, 0xff, 0x00, 0xff));

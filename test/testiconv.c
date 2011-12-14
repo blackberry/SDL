@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
 	int errors = 0;
 
 	if ( !argv[1] ) {
-		argv[1] = "utf8.txt";
+		argv[1] = "app/native/utf8.txt";
 	}
 	file = fopen(argv[1], "rb");
 	if ( !file ) {

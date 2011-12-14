@@ -272,7 +272,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Set the icon -- this must be done before the first mode set */
-	icon = LoadIconSurface("icon.bmp", &icon_mask);
+	icon = LoadIconSurface("app/native/icon.bmp", &icon_mask);
 	if ( icon != NULL ) {
 		SDL_WM_SetIcon(icon, icon_mask);
 	}

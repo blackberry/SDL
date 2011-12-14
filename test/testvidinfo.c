@@ -135,9 +135,9 @@ int RunModeTests(SDL_Surface *screen)
 	}
 
         /* run the generic blit test */
-	bmp = SDL_LoadBMP("sample.bmp");
+	bmp = SDL_LoadBMP("app/native/sample.bmp");
 	if ( ! bmp ) {
-		printf("Couldn't load sample.bmp: %s\n", SDL_GetError());
+		printf("Couldn't load app/native/sample.bmp: %s\n", SDL_GetError());
 		return 0;
 	}
 	printf("Running freshly loaded blit test: %dx%d at %d bpp, flags: ",
@@ -164,9 +164,9 @@ int RunModeTests(SDL_Surface *screen)
 	}
 
         /* run the colorkeyed blit test */
-	bmpcc = SDL_LoadBMP("sample.bmp");
+	bmpcc = SDL_LoadBMP("app/native/sample.bmp");
 	if ( ! bmpcc ) {
-		printf("Couldn't load sample.bmp: %s\n", SDL_GetError());
+		printf("Couldn't load app/native/sample.bmp: %s\n", SDL_GetError());
 		return 0;
 	}
 	printf("Running freshly loaded cc blit test: %dx%d at %d bpp, flags: ",
@@ -199,7 +199,7 @@ int RunModeTests(SDL_Surface *screen)
 	bmp = SDL_DisplayFormat(bmp);
 	SDL_FreeSurface(tmp);
 	if ( ! bmp ) {
-		printf("Couldn't convert sample.bmp: %s\n", SDL_GetError());
+		printf("Couldn't convert app/native/sample.bmp: %s\n", SDL_GetError());
 		return 0;
 	}
 	printf("Running display format blit test: %dx%d at %d bpp, flags: ",
@@ -230,7 +230,7 @@ int RunModeTests(SDL_Surface *screen)
 	bmpcc = SDL_DisplayFormat(bmpcc);
 	SDL_FreeSurface(tmp);
 	if ( ! bmpcc ) {
-		printf("Couldn't convert sample.bmp: %s\n", SDL_GetError());
+		printf("Couldn't convert app/native/sample.bmp: %s\n", SDL_GetError());
 		return 0;
 	}
 	printf("Running display format cc blit test: %dx%d at %d bpp, flags: ",
@@ -260,13 +260,13 @@ int RunModeTests(SDL_Surface *screen)
         if (bmp->format->BitsPerPixel>8)
         {
 		SDL_FreeSurface(bmp);
-                bmp = SDL_LoadBMP("sample.bmp");
+                bmp = SDL_LoadBMP("app/native/sample.bmp");
 		SDL_SetAlpha(bmp, SDL_SRCALPHA, 85); /* 85 - 33% alpha */
 		tmp = bmp;
 		bmp = SDL_DisplayFormat(bmp);
 		SDL_FreeSurface(tmp);
 		if ( ! bmp ) {
-			printf("Couldn't convert sample.bmp: %s\n", SDL_GetError());
+			printf("Couldn't convert app/native/sample.bmp: %s\n", SDL_GetError());
 			return 0;
 		}
 		printf("Running display format alpha blit test: %dx%d at %d bpp, flags: ",
@@ -297,14 +297,14 @@ int RunModeTests(SDL_Surface *screen)
         if (bmp->format->BitsPerPixel>8)
         {
 		SDL_FreeSurface(bmpcc);
-                bmpcc = SDL_LoadBMP("sample.bmp");
+                bmpcc = SDL_LoadBMP("app/native/sample.bmp");
 		SDL_SetAlpha(bmpcc, SDL_SRCALPHA, 85); /* 85 - 33% alpha */
                 SDL_SetColorKey(bmpcc, SDL_SRCCOLORKEY | SDL_RLEACCEL, *(Uint8 *)bmpcc->pixels);
 		tmp = bmpcc;
 		bmpcc = SDL_DisplayFormat(bmpcc);
 		SDL_FreeSurface(tmp);
 		if ( ! bmpcc ) {
-			printf("Couldn't convert sample.bmp: %s\n", SDL_GetError());
+			printf("Couldn't convert app/native/sample.bmp: %s\n", SDL_GetError());
 			return 0;
 		}
 		printf("Running display format cc+alpha blit test: %dx%d at %d bpp, flags: ",
