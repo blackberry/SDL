@@ -14,8 +14,8 @@
 #include <stdio.h>	
 
 /* WARNING ! those 2 files will be destroyed by this test program */
-#define FBASENAME1	"sdldata1"		/* this file will be created during tests */
-#define FBASENAME2	"sdldata2"		/* this file should not exists before starting test */
+#define FBASENAME1	"data/sdldata1"		/* this file will be created during tests */
+#define FBASENAME2	"data/sdldata2"		/* this file should not exists before starting test */
 
 
 #ifndef NULL

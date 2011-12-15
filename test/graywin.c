@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
 	/* See if we try to get a hardware colormap */
 	width = 640;
 	height = 480;
-	bpp = 8;
+	bpp = 32;
 	videoflags = SDL_SWSURFACE;
 	while ( argc > 1 ) {
 		--argc;
