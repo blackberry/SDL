@@ -230,7 +230,7 @@ void initializeOverlay(_THIS, screen_window_t screenWindow)
 	// Load controls from app/native
 	if (!loaded) {
 		char cwd[256];
-		if (getcwd(cwd, 256) != NULL && chdir("app/native")) {
+		if ((getcwd(cwd, 256) != NULL) && (chdir("app/native") == 0)) {
 			file = fopen(filename, "r");
 			if (file) {
 				fclose(file);
