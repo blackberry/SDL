@@ -1,4 +1,3 @@
-#!/bin/bash
 #!/bin/bash 
 
 # Copyright (c) 2011 Research In Motion Limited.
@@ -28,7 +27,7 @@ then
   echo "Usage: `basename $0` <testapp> <playbook_ipaddr> <playbook_password>"
   exit -1
 fi
-
+cp ../../TouchControlOverlay/Device-Debug/libTouchControlOverlay.so ../playbook_prefix/lib/
 echo "<qnx>" > blackberry-tablet.xml
 echo "   <id>org.libsdl.$1</id>" >> blackberry-tablet.xml
 echo "   <name>$1</name>" >> blackberry-tablet.xml
@@ -43,8 +42,8 @@ echo "      <transparent>false</transparent>" >> blackberry-tablet.xml
 echo "   </initialWindow>" >> blackberry-tablet.xml
 
 echo "   <permission system=\"true\">run_native</permission>" >> blackberry-tablet.xml
-echo "   <asset path=\"../playbook_prefix/lib/libSDL.so\" type=\"Qnx/Elf\">libSDL.so</asset>" >> blackberry-tablet.xml
 echo "   <asset path=\"../playbook_prefix/lib/libSDL-1.2.so.11\" type=\"Qnx/Elf\">libSDL-1.2.so.11</asset>" >> blackberry-tablet.xml
+echo "   <asset path=\"../playbook_prefix/lib/libTouchControlOverlay.so\" type=\"Qnx/Elf\">libTouchControlOverlay.so</asset>" >> blackberry-tablet.xml
 echo "   <asset path=\"icon.bmp\">icon.bmp</asset>" >> blackberry-tablet.xml
 echo "   <asset path=\"sail.bmp\">sail.bmp</asset>" >> blackberry-tablet.xml
 echo "   <asset path=\"sample.bmp\">sample.bmp</asset>" >> blackberry-tablet.xml
@@ -55,7 +54,7 @@ echo "   <asset path=\"utf8.txt\">utf8.txt</asset>" >> blackberry-tablet.xml
 echo "   <env var=\"LD_LIBRARY_PATH\" value=\"app/native/lib\"/>" >> blackberry-tablet.xml
 echo "</qnx>" >> blackberry-tablet.xml
 
-blackberry-nativepackager -package -target bar $1.bar blackberry-tablet.xml $1 icon.bmp sail.bmp sample.bmp sample.wav moose.dat utf8.txt -C ../playbook_prefix ../playbook_prefix/lib/libSDL.so ../playbook_prefix/lib/libSDL-1.2.so.11
+blackberry-nativepackager -package -target bar $1.bar blackberry-tablet.xml $1 icon.bmp sail.bmp sample.bmp sample.wav moose.dat utf8.txt -C ../playbook_prefix ../playbook_prefix/lib/libSDL-1.2.so.11 ../playbook_prefix/lib/libTouchControlOverlay.so
 blackberry-deploy -installApp -device $2 -password $3 -package $1.bar
 
 rm $1.bar blackberry-tablet.xml
