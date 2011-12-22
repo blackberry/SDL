@@ -22,11 +22,12 @@
 #since we use relative paths, please make sure you run this 
 #script in the directory where you found it. 
 
-if [ $# -ne 3 ]
+if [ $# -ne 4 ]
 then
-  echo "Usage: `basename $0` <testapp> <playbook_ipaddr> <playbook_password>"
+  echo "Usage: `basename $0` <testapp> <playbook_ipaddr> <playbook_password> [8bpp | 32bpp]"
   exit -1
 fi
+
 cp ../../TouchControlOverlay/Device-Debug/libTouchControlOverlay.so ../playbook_prefix/lib/
 echo "<qnx>" > blackberry-tablet.xml
 echo "   <id>org.libsdl.$1</id>" >> blackberry-tablet.xml
@@ -51,6 +52,10 @@ echo "   <asset path=\"sample.wav\">sample.wav</asset>" >> blackberry-tablet.xml
 echo "   <asset path=\"moose.dat\">moose.dat</asset>" >> blackberry-tablet.xml
 echo "   <asset path=\"utf8.txt\">utf8.txt</asset>" >> blackberry-tablet.xml
 
+if [ "$4" = "8bpp" ]
+then
+  echo "   <env var=\"SDL_VIDEODRIVER\" value=\"pb-8bit\"/>" >> blackberry-tablet.xml
+fi
 echo "   <env var=\"LD_LIBRARY_PATH\" value=\"app/native/lib\"/>" >> blackberry-tablet.xml
 echo "</qnx>" >> blackberry-tablet.xml
 

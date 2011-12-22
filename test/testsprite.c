@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
 	videoflags = SDL_SWSURFACE|SDL_ANYFORMAT;
 	width = 640;
 	height = 480;
-	video_bpp = 32;
+	video_bpp = 8;
 	debug_flip = 0;
 	while ( argc > 1 ) {
 		--argc;

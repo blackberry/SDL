@@ -236,7 +236,7 @@ int main(int argc, char *argv[])
 
 	/* Set the options, based on command line arguments */
 	init_flags = SDL_INIT_VIDEO;
-	video_bpp = 32;
+	video_bpp = 8;
 	video_flags = SDL_SWSURFACE;
 	parsed = 1;
 	while ( parsed ) {
