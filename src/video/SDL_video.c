@@ -127,6 +127,7 @@ static VideoBootStrap *bootstrap[] = {
 	&CACA_bootstrap,
 #endif
 #if SDL_VIDEO_DRIVER_PLAYBOOK
+	&PLAYBOOK_8Bit_bootstrap,
 	&PLAYBOOK_bootstrap,
 #endif
 #if SDL_VIDEO_DRIVER_DUMMY
