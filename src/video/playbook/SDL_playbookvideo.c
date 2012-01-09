@@ -333,7 +333,12 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 		return NULL;
 	}
 
+#ifdef __STRETCHED__
 	int sizeOfBuffer[2] = {width, height};
+#else
+	int sizeOfBuffer[2] = {sizeOfWindow[0], sizeOfWindow[1]};
+#endif
+
 	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_BUFFER_SIZE, sizeOfBuffer);
 	if (rc) {
 		SDL_SetError("Cannot resize window buffer: %s", strerror(errno));
@@ -416,8 +421,13 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 	current->flags &= ~SDL_RESIZABLE; /* no resize for Direct Context */
 	current->flags |= SDL_FULLSCREEN;
 	current->flags |= SDL_HWSURFACE;
+#ifdef __STRETCHED__
 	current->w = width;
 	current->h = height;
+#else
+	current->w = sizeOfWindow[0];
+	current->h = sizeOfWindow[1];
+#endif
 	current->pitch = _priv->pitch;
 	current->pixels = _priv->pixels;
 	_priv->surface = current;
