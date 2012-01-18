@@ -330,8 +330,13 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 
 #ifdef __STRETCHED__
 
-	int sizeOfWindow[2] = {1024, 600};
-
+	int sizeOfWindow[2];
+	rc = screen_get_window_property_iv(screenWindow, SCREEN_PROPERTY_SIZE, sizeOfWindow);
+		if (rc) {
+			SDL_SetError("Cannot get resolution: %s", strerror(errno));
+			screen_destroy_window(screenWindow);
+			return NULL;
+		}
 #else
 	int hwResolution[2];
 
