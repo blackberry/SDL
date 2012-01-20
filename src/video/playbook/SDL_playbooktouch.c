@@ -58,7 +58,7 @@ int handleDPad(int angle, int event)
 			} else if (angle <= -68) {
 				tmp[0] = 1;
 				// Up: -68 to -102
-			} else if (angle <= 23) {
+			} else if (angle <= -23) {
 				tmp[0] = 1;
 				tmp[2] = 1;
 				// Up-Right: -23 to -67

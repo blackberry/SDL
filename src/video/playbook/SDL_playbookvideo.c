@@ -63,6 +63,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
+#include <math.h>
 
 #define PLAYBOOKVID_DRIVER_NAME "playbook"
 
@@ -325,7 +326,46 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 
 	int rc;
 	int format = 0;
-	int sizeOfWindow[2] = {1024, 600};
+
+
+#ifdef __STRETCHED__
+
+	int sizeOfWindow[2];
+	rc = screen_get_window_property_iv(screenWindow, SCREEN_PROPERTY_SIZE, sizeOfWindow);
+		if (rc) {
+			SDL_SetError("Cannot get resolution: %s", strerror(errno));
+			screen_destroy_window(screenWindow);
+			return NULL;
+		}
+#else
+	int hwResolution[2];
+
+	rc = screen_get_window_property_iv(screenWindow, SCREEN_PROPERTY_SIZE, hwResolution);
+	if (rc) {
+		SDL_SetError("Cannot get resolution: %s", strerror(errno));
+		screen_destroy_window(screenWindow);
+		return NULL;
+	}
+
+	float hwRatio, appRatio;
+	hwRatio = (float)hwResolution[0]/(float)hwResolution[1];
+	appRatio = (float)width/(float)height;
+
+//	int sizeOfWindow[2] = {816, 478};
+	double newResolution[2];
+	if(hwRatio > appRatio){
+		newResolution[0] = ((double)height / ((double)hwResolution[1] / (double)hwResolution[0]));
+		newResolution[1] = (double)height;
+	}else{
+		newResolution[0] = (((double)hwResolution[1] / (double)hwResolution[0]) * (double)width);
+		newResolution[1] = (double)width;
+	}
+
+	int sizeOfWindow[2];
+	sizeOfWindow[0] = (int)(ceil(newResolution[0]));
+	sizeOfWindow[1] = (int)(ceil(newResolution[1]));
+#endif
+
 	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_SIZE, sizeOfWindow);
 	if (rc) {
 		SDL_SetError("Cannot resize window: %s", strerror(errno));
@@ -333,7 +373,12 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 		return NULL;
 	}
 
+#ifdef __STRETCHED__
 	int sizeOfBuffer[2] = {width, height};
+#else
+	int sizeOfBuffer[2] = {sizeOfWindow[0], sizeOfWindow[1]};
+#endif
+
 	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_BUFFER_SIZE, sizeOfBuffer);
 	if (rc) {
 		SDL_SetError("Cannot resize window buffer: %s", strerror(errno));
@@ -416,8 +461,13 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 	current->flags &= ~SDL_RESIZABLE; /* no resize for Direct Context */
 	current->flags |= SDL_FULLSCREEN;
 	current->flags |= SDL_HWSURFACE;
+#ifdef __STRETCHED__
 	current->w = width;
 	current->h = height;
+#else
+	current->w = sizeOfWindow[0];
+	current->h = sizeOfWindow[1];
+#endif
 	current->pitch = _priv->pitch;
 	current->pixels = _priv->pixels;
 	_priv->surface = current;
