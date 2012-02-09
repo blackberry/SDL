@@ -4,6 +4,8 @@ The _**SDL**_ repository holds the sources for Simple DirectMedia Layer, an open
 
 **NOTE**: This port depends on the TouchControlOverlay library, located [here](https://github.com/blackberry/TouchControlOverlay).
 
+**WARNING**: If you are building this using the configure script, you must use the 2.0 version of the NDK. It is not compatible with version 1.0. However, importing the project into the NDK should work in both versions.
+
 **Repository Committers** 
 
 * [Jeremy Nicholl](https://github.com/jnicholl)
