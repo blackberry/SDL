@@ -50,7 +50,7 @@ struct SDL_PrivateVideoData {
 
     SDL_Rect *SDL_modelist[SDL_NUMMODES+1];
 
-    // For 8bit video driver
+    // For 8bit video driver and OpenGL windows
     struct {
     	void *eglDisplay;
     	void *eglContext;

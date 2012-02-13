@@ -175,6 +175,11 @@ void SDL_SetCursor (SDL_Cursor *cursor)
 		return;
 	}
 
+#ifdef __PLAYBOOK__ // FIXME: Hack to prevent cursor drawing in OpenGL.
+	if (video->screen->flags & SDL_OPENGL)
+		return;
+#endif
+
 	/* Prevent the event thread from moving the mouse */
 	SDL_LockCursor();
 

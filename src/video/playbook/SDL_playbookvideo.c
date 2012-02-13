@@ -55,6 +55,7 @@
 #include "SDL_playbookvideo.h"
 #include "SDL_playbookvideo_c.h"
 #include "SDL_playbookvideo_8bit_c.h"
+#include "SDL_playbookvideo_gl_c.h"
 #include "SDL_playbookevents_c.h"
 #include "SDL_playbookhw_c.h"
 #include "SDL_playbooktouch_c.h"
@@ -115,6 +116,12 @@ static SDL_VideoDevice *PLAYBOOK_CreateDevice(int devindex)
 	device->GetWMInfo = NULL;
 	device->InitOSKeymap = PLAYBOOK_InitOSKeymap;
 	device->PumpEvents = PLAYBOOK_PumpEvents;
+
+	device->GL_LoadLibrary = 0; //PLAYBOOK_GL_LoadLibrary;
+	device->GL_GetProcAddress = PLAYBOOK_GL_GetProcAddress;
+	device->GL_GetAttribute = PLAYBOOK_GL_GetAttribute;
+	device->GL_MakeCurrent = PLAYBOOK_GL_MakeCurrent;
+	device->GL_SwapBuffers = PLAYBOOK_GL_SwapBuffers;
 
 	device->free = PLAYBOOK_DeleteDevice;
 
@@ -222,6 +229,9 @@ int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 
 	_priv->screenWindow = 0;
 	_priv->surface = 0;
+	_priv->eglInfo.eglDisplay = 0;
+	_priv->eglInfo.eglContext = 0;
+	_priv->eglInfo.eglSurface = 0;
 
 	for ( i=0; i<SDL_NUMMODES; ++i ) {
 		_priv->SDL_modelist[i] = SDL_malloc(sizeof(SDL_Rect));
@@ -321,6 +331,9 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 	if (width == 640 && height == 400) {
 		_priv->eventYOffset = 40;
 		height = 480;
+	}
+	if (flags & SDL_OPENGL) {
+		return PLAYBOOK_SetVideoMode_GL(this, current, width, height, bpp, flags);
 	}
 	screen_window_t screenWindow = PLAYBOOK_CreateWindow(this, current, width, height, bpp);
 	if (screenWindow == NULL)
@@ -505,8 +518,15 @@ int PLAYBOOK_SetColors(_THIS, int firstcolor, int ncolors, SDL_Color *colors)
 void PLAYBOOK_VideoQuit(_THIS)
 {
 	if (_priv->screenWindow) {
-		screen_destroy_window_buffers(_priv->screenWindow);
-		screen_destroy_window(_priv->screenWindow);
+		if (_priv->eglInfo.eglDisplay) {
+			eglDestroySurface(_priv->eglInfo.eglDisplay, _priv->eglInfo.eglSurface);
+			screen_destroy_window(_priv->screenWindow);
+			eglDestroyContext(_priv->eglInfo.eglDisplay, _priv->eglInfo.eglContext);
+			eglTerminate(_priv->eglInfo.eglDisplay);
+		} else {
+			screen_destroy_window_buffers(_priv->screenWindow);
+			screen_destroy_window(_priv->screenWindow);
+		}
 	}
 	screen_stop_events(_priv->screenContext);
 	screen_destroy_event(_priv->screenEvent);
