@@ -318,8 +318,10 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 				int width, int height, int bpp, Uint32 flags)
 {
 //	fprintf(stderr, "SetVideoMode: %dx%d %dbpp\n", width, height, bpp);
-	if (width == 640 && height == 400)
+	if (width == 640 && height == 400) {
+		_priv->eventYOffset = 40;
 		height = 480;
+	}
 	screen_window_t screenWindow = PLAYBOOK_CreateWindow(this, current, width, height, bpp);
 	if (screenWindow == NULL)
 		return NULL;

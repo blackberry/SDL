@@ -151,6 +151,7 @@ int handleMouseButton(int button, int mask, int event)
 		break;
 	}
 	SDL_GetMouseState(&mouseX, &mouseY);
+	mouseY += (current_video->hidden)->eventYOffset;
 
 	SDL_keysym shift, ctrl, alt;
 	shift.scancode = 42;
