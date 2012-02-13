@@ -471,6 +471,69 @@ static int TranslateVKB(int sym, int mods, int flags, int scan, int cap, SDL_key
 	case SDLK_SLASH:
 		keysym->unicode = '/';
 		break;
+	case SDLK_BACKSPACE:
+		keysym->unicode = SDLK_BACKSPACE;
+		break;
+	case SDLK_DELETE:
+		keysym->unicode = SDLK_DELETE;
+		break;
+	case SDLK_ESCAPE:
+		keysym->unicode = SDLK_ESCAPE;
+		break;
+	case SDLK_RETURN:
+		keysym->unicode = SDLK_RETURN;
+		break;
+	case SDLK_DOLLAR:
+		keysym->unicode = '$';
+		break;
+	case SDLK_SPACE:
+		keysym->unicode = ' ';
+		break;
+	case SDLK_MINUS:
+		keysym->unicode = '-';
+		break;
+	case SDLK_EXCLAIM:
+		keysym->unicode = '!';
+		break;
+	case SDLK_QUESTION:
+		keysym->unicode = '?';
+		break;
+	case SDLK_HASH:
+		keysym->unicode = '#';
+		break;
+	case SDLK_AT:
+		keysym->unicode = '@';
+		break;
+	case SDLK_ASTERISK:
+		keysym->unicode = '*';
+		break;
+	case SDLK_LEFTPAREN:
+		keysym->unicode = '(';
+		break;
+	case SDLK_RIGHTPAREN:
+		keysym->unicode = ')';
+		break;
+	case SDLK_EQUALS:
+		keysym->unicode = '=';
+		break;
+	case SDLK_PLUS:
+		keysym->unicode = '+';
+		break;
+	case SDLK_LESS:
+		keysym->unicode = '<';
+		break;
+	case SDLK_GREATER:
+		keysym->unicode = '>';
+		break;
+	case SDLK_SEMICOLON:
+		keysym->unicode = ';';
+		break;
+	case SDLK_QUOTEDBL:
+		keysym->unicode = '"';
+		break;
+	case SDLK_QUOTE:
+		keysym->unicode = '\'';
+		break;
 	}
 	keysym->mod = KMOD_NONE;
 	return shifted;
