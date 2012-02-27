@@ -698,31 +698,12 @@ static void handleMtouchEvent(screen_event_t event, screen_window_t window, int 
     	fprintf(stderr, "Detected swipe event: %d,%d\n", pos[0], pos[1]);
     	return;
     }
-    static int touching = 0;
     if (type == SCREEN_EVENT_MTOUCH_TOUCH) {
-    	if (touching) {
-    		SDL_PrivateMouseMotion(SDL_BUTTON_LEFT, 0, pos[0], pos[1]);
-    	} else {
-    		SDL_PrivateMouseMotion(0, 0, pos[0], pos[1]);
-    		SDL_PrivateMouseButton(SDL_PRESSED, SDL_BUTTON_LEFT, pos[0], pos[1]);
-    	}
-    	moveEvent.pending = 0;
-    	touching = 1;
+        SDL_PrivateMultiMouseButton(contactId, SDL_PRESSED, SDL_BUTTON_LEFT, pos[0], pos[1]);
     } else if (type == SCREEN_EVENT_MTOUCH_RELEASE) {
-    	if (touching) {
-    		SDL_PrivateMouseMotion(SDL_BUTTON_LEFT, 0, pos[0], pos[1]);
-    		SDL_PrivateMouseButton(SDL_RELEASED, SDL_BUTTON_LEFT, pos[0], pos[1]);
-    	} else {
-    		SDL_PrivateMouseMotion(0, 0, pos[0], pos[1]);
-    	}
-    	moveEvent.pending = 0;
-    	touching = 0;
+        SDL_PrivateMultiMouseButton(contactId, SDL_RELEASED, SDL_BUTTON_LEFT, pos[0], pos[1]);
     } else if (type == SCREEN_EVENT_MTOUCH_MOVE) {
-    	moveEvent.pending = 1;
-    	moveEvent.touching = touching;
-    	moveEvent.pos[0] = pos[0];
-    	moveEvent.pos[1] = pos[1];
-    	//SDL_PrivateMouseMotion((touching?SDL_BUTTON_LEFT:0), 0, pos[0], pos[1]);
+        SDL_PrivateMultiMouseMotion(contactId, SDL_BUTTON_LEFT, 0, pos[0], pos[1]);
     }
 
     // TODO: Possibly need more complicated touch handling
@@ -759,7 +740,9 @@ void handleNavigatorEvent(_THIS, bps_event_t *event)
 	}
 		break;
 	case NAVIGATOR_SWIPE_DOWN:
-		tco_swipedown(_priv->emu_context, _priv->screenWindow);
+		if (_priv->tcoControlsDir) {
+			tco_swipedown(_priv->emu_context, _priv->screenWindow);
+		}
 		break;
 	case NAVIGATOR_SWIPE_START:
 		//fprintf(stderr, "Swipe start\n");
@@ -823,7 +806,11 @@ void handleScreenEvent(_THIS, bps_event_t *event)
 		case SCREEN_EVENT_MTOUCH_TOUCH:
 		case SCREEN_EVENT_MTOUCH_MOVE:
 		case SCREEN_EVENT_MTOUCH_RELEASE:
-			tco_touch(this->hidden->emu_context, se);
+			if (_priv->tcoControlsDir) {
+				tco_touch(this->hidden->emu_context, se);
+			} else {
+				handleMtouchEvent(se, window, type);
+			}
 			break;
 	}
 }
@@ -899,11 +886,6 @@ PLAYBOOK_PumpEvents(_THIS)
 		state.pending[1] = 0;
 	}
 #endif
-	if (moveEvent.pending) {
-		SDL_PrivateMouseMotion((moveEvent.touching?SDL_BUTTON_LEFT:0), 0, moveEvent.pos[0], moveEvent.pos[1]);
-		moveEvent.pending = 0;
-	}
-
 }
 
 void PLAYBOOK_InitOSKeymap(_THIS)

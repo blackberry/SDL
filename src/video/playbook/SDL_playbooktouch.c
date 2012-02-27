@@ -210,41 +210,62 @@ int handleTouchScreen(int x, int y, int tap, int hold)
 	return TCO_SUCCESS;
 }
 
+void locateTCOControlFile(_THIS)
+{
+    const char *filename = "sdl-controls.xml";
+    char *homeDir = SDL_getenv("HOME");
+    char fullPath[512];
+    sprintf(fullPath, "%s/../%s", homeDir, filename);
+    int fd = fopen(fullPath, "r");
+    if (fd) {
+        _priv->tcoControlsDir = SDL_malloc(strlen(fullPath) - strlen(filename) + 1);
+        strncpy(_priv->tcoControlsDir, fullPath, strlen(fullPath) - strlen(filename));
+        fclose(fd);
+    } else {
+        sprintf(fullPath, "%s/../app/native/%s", homeDir, filename);
+        fd = fopen(fullPath, "r");
+        if (fd) {
+            _priv->tcoControlsDir = SDL_malloc(strlen(fullPath) - strlen(filename) + 1);
+            strncpy(_priv->tcoControlsDir, fullPath, strlen(fullPath) - strlen(filename));
+            fclose(fd);
+        } else {
+            _priv->tcoControlsDir = 0; // Use SDL multi-mouse controls.
+        }
+    }
+}
+
 void initializeOverlay(_THIS, screen_window_t screenWindow)
 {
 	int loaded = 0;
-	FILE *file = 0;
 	const char *filename = "sdl-controls.xml";
 	struct tco_callbacks callbacks = {
 		handleKey, handleDPad, handleTouch, handleMouseButton, handleTap, handleTouchScreen
 	};
+
+	if(!_priv->tcoControlsDir) {
+		// Immediately fall back to SDL multi-mouse controls
+		fprintf(stderr, "Unable to initialize TCO with a NULL tcoControlsDir");
+		return;
+	}
+
 	tco_initialize(&_priv->emu_context, _priv->screenContext, callbacks);
 
-	// Load controls from current working directory
-	file = fopen(filename, "r");
-	if (file) {
-		fclose(file);
-		if (tco_loadcontrols(_priv->emu_context, filename) == TCO_SUCCESS)
+	// Load controls from file
+	char cwd[256];
+	if ((getcwd(cwd, 256) != NULL) && (chdir(_priv->tcoControlsDir) == 0)) {
+		if (tco_loadcontrols(_priv->emu_context, filename) == TCO_SUCCESS) {
 			loaded = 1;
-	}
-
-	// Load controls from app/native
-	if (!loaded) {
-		char cwd[256];
-		if ((getcwd(cwd, 256) != NULL) && (chdir("app/native") == 0)) {
-			file = fopen(filename, "r");
-			if (file) {
-				fclose(file);
-				if (tco_loadcontrols(_priv->emu_context, filename) == TCO_SUCCESS)
-					loaded = 1;
-			}
-			chdir(cwd);
 		}
+		chdir(cwd);
 	}
 
-	// Set up default controls
-	if (!loaded) {
-		tco_loadcontrols_default(_priv->emu_context);
+	// Clean up and set flags
+	SDL_free(_priv->tcoControlsDir);
+	if (loaded) {
+		_priv->tcoControlsDir = 1;
+		tco_showlabels(_priv->emu_context, screenWindow);
+	} else {
+		tco_shutdown(&_priv->emu_context);
+		_priv->tcoControlsDir = 0;
 	}
-	tco_showlabels(_priv->emu_context, screenWindow);
 }

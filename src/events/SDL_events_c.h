@@ -57,7 +57,11 @@ extern Uint8 SDL_ProcessEvents[SDL_NUMEVENTS];
 extern int SDL_PrivateAppActive(Uint8 gain, Uint8 state);
 extern int SDL_PrivateMouseMotion(Uint8 buttonstate, int relative,
 						Sint16 x, Sint16 y);
+extern int SDL_PrivateMultiMouseMotion(int which, Uint8 buttonstate,
+						int relative, Sint16 x, Sint16 y);
 extern int SDL_PrivateMouseButton(Uint8 state, Uint8 button,Sint16 x,Sint16 y);
+extern int SDL_PrivateMultiMouseButton(int which, Uint8 state, Uint8 button,
+						Sint16 x, Sint16 y);
 extern int SDL_PrivateKeyboard(Uint8 state, SDL_keysym *key);
 extern int SDL_PrivateResize(int w, int h);
 extern int SDL_PrivateExpose(void);
@@ -69,6 +73,7 @@ extern void SDL_SetMouseRange(int maxX, int maxY);
 
 /* Used by the activity event handler to remove mouse focus */
 extern void SDL_ResetMouse(void);
+extern void SDL_ResetMultiMouse(int which);
 
 /* Used by the activity event handler to remove keyboard focus */
 extern void SDL_ResetKeyboard(void);

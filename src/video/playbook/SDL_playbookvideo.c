@@ -300,7 +300,9 @@ screen_window_t PLAYBOOK_CreateWindow(_THIS, SDL_Surface *current,
 	} else {
 		if (current->hwdata)
 			SDL_free(current->hwdata);
-		tco_shutdown(_priv->emu_context);
+		if (_priv->tcoControlsDir) {
+			tco_shutdown(_priv->emu_context);
+		}
 		screen_destroy_window_buffers(_priv->screenWindow);
 		screenWindow = _priv->screenWindow;
 	}
@@ -458,7 +460,10 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 		return NULL;
 	}
 
-	initializeOverlay(this, screenWindow);
+	locateTCOControlFile(this);
+	if (_priv->tcoControlsDir) {
+		initializeOverlay(this, screenWindow);	
+	}
 
 	_priv->frontBuffer = windowBuffer[0];
 	_priv->screenWindow = screenWindow;
@@ -532,6 +537,8 @@ void PLAYBOOK_VideoQuit(_THIS)
 	screen_destroy_event(_priv->screenEvent);
 	screen_destroy_context(_priv->screenContext);
 	bps_shutdown();
-	tco_shutdown(_priv->emu_context);
+	if (_priv->tcoControlsDir) {
+		tco_shutdown(_priv->emu_context);
+	}
 	this->screen = 0;
 }

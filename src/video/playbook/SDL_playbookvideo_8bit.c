@@ -553,7 +553,9 @@ void PLAYBOOK_8Bit_VideoQuit(_THIS)
 	screen_destroy_event(_priv->screenEvent);
 	screen_destroy_context(_priv->screenContext);
 	bps_shutdown();
-	tco_shutdown(_priv->emu_context);
+	if (_priv->tcoControlsDir) {
+		tco_shutdown(_priv->emu_context);
+	}
 	this->screen = 0;
 }
 

@@ -108,7 +108,7 @@
 #define SDL_CDROM_QNX	1
 
 /* Enable the stub joystick driver (src/joystick/dummy/\*.c) */
-#define SDL_JOYSTICK_DISABLED	1
+#define SDL_JOYSTICK_DISABLED	0
 
 /* Enable the dlopen shared object loader (src/loadso/dlopen/\*.c) */
 #define SDL_LOADSO_DLOPEN	1
