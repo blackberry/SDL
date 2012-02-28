@@ -295,14 +295,18 @@ screen_window_t PLAYBOOK_CreateWindow(_THIS, SDL_Surface *current,
 {
 	screen_window_t screenWindow;
 	int rc = 0;
+	int position[2] = {0, 0};
+	int idle_mode = SCREEN_IDLE_MODE_KEEP_AWAKE; // TODO: Handle idle gracefully?
+
 	if (!_priv->screenWindow) {
+		char groupName[256];
+
 		rc = screen_create_window(&screenWindow, _priv->screenContext);
 		if (rc) {
 			SDL_SetError("Cannot create window: %s", strerror(errno));
 			return NULL;
 		}
 
-		char groupName[256] = {0};
 		snprintf(groupName, 256, "sdl-%dx%dx%d-%u", width, height, bpp, time(NULL));
 		rc = screen_create_window_group(screenWindow, groupName);
 		if (rc) {
@@ -320,7 +324,6 @@ screen_window_t PLAYBOOK_CreateWindow(_THIS, SDL_Surface *current,
 		screenWindow = _priv->screenWindow;
 	}
 
-	int position[2] = {0, 0};
 	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_POSITION, position);
 	if (rc) {
 		SDL_SetError("Cannot position window: %s", strerror(errno));
@@ -328,7 +331,6 @@ screen_window_t PLAYBOOK_CreateWindow(_THIS, SDL_Surface *current,
 		return NULL;
 	}
 
-	int idle_mode = SCREEN_IDLE_MODE_KEEP_AWAKE; // TODO: Handle idle gracefully?
 	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_IDLE_MODE, &idle_mode);
 	if (rc) {
 		SDL_SetError("Cannot disable idle mode: %s", strerror(errno));
@@ -387,8 +389,8 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 		newResolution[0] = ((double)height / ((double)hwResolution[1] / (double)hwResolution[0]));
 		newResolution[1] = (double)height;
 	}else{
-		newResolution[0] = (((double)hwResolution[1] / (double)hwResolution[0]) * (double)width);
-		newResolution[1] = (double)width;
+		newResolution[0] = (double)width;
+		newResolution[1] = (((double)hwResolution[1] / (double)hwResolution[0]) * (double)width);
 	}
 
 	int sizeOfWindow[2];
