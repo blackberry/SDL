@@ -19,6 +19,7 @@ extern int handleTouch(int dx, int dy);
 extern int handleMouseButton(int button, int mask, int event);
 extern int handleTap();
 extern int handleTouchScreen(int x, int y, int tap, int hold);
+extern void locateTCOControlFile(_THIS);
 extern void initializeOverlay(_THIS, screen_window_t screenWindow);
 
 #endif /* SDL_PLAYBOOKTOUCH_C_H_ */

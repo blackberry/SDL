@@ -471,6 +471,69 @@ static int TranslateVKB(int sym, int mods, int flags, int scan, int cap, SDL_key
 	case SDLK_SLASH:
 		keysym->unicode = '/';
 		break;
+	case SDLK_BACKSPACE:
+		keysym->unicode = SDLK_BACKSPACE;
+		break;
+	case SDLK_DELETE:
+		keysym->unicode = SDLK_DELETE;
+		break;
+	case SDLK_ESCAPE:
+		keysym->unicode = SDLK_ESCAPE;
+		break;
+	case SDLK_RETURN:
+		keysym->unicode = SDLK_RETURN;
+		break;
+	case SDLK_DOLLAR:
+		keysym->unicode = '$';
+		break;
+	case SDLK_SPACE:
+		keysym->unicode = ' ';
+		break;
+	case SDLK_MINUS:
+		keysym->unicode = '-';
+		break;
+	case SDLK_EXCLAIM:
+		keysym->unicode = '!';
+		break;
+	case SDLK_QUESTION:
+		keysym->unicode = '?';
+		break;
+	case SDLK_HASH:
+		keysym->unicode = '#';
+		break;
+	case SDLK_AT:
+		keysym->unicode = '@';
+		break;
+	case SDLK_ASTERISK:
+		keysym->unicode = '*';
+		break;
+	case SDLK_LEFTPAREN:
+		keysym->unicode = '(';
+		break;
+	case SDLK_RIGHTPAREN:
+		keysym->unicode = ')';
+		break;
+	case SDLK_EQUALS:
+		keysym->unicode = '=';
+		break;
+	case SDLK_PLUS:
+		keysym->unicode = '+';
+		break;
+	case SDLK_LESS:
+		keysym->unicode = '<';
+		break;
+	case SDLK_GREATER:
+		keysym->unicode = '>';
+		break;
+	case SDLK_SEMICOLON:
+		keysym->unicode = ';';
+		break;
+	case SDLK_QUOTEDBL:
+		keysym->unicode = '"';
+		break;
+	case SDLK_QUOTE:
+		keysym->unicode = '\'';
+		break;
 	}
 	keysym->mod = KMOD_NONE;
 	return shifted;
@@ -635,31 +698,12 @@ static void handleMtouchEvent(screen_event_t event, screen_window_t window, int 
     	fprintf(stderr, "Detected swipe event: %d,%d\n", pos[0], pos[1]);
     	return;
     }
-    static int touching = 0;
     if (type == SCREEN_EVENT_MTOUCH_TOUCH) {
-    	if (touching) {
-    		SDL_PrivateMouseMotion(SDL_BUTTON_LEFT, 0, pos[0], pos[1]);
-    	} else {
-    		SDL_PrivateMouseMotion(0, 0, pos[0], pos[1]);
-    		SDL_PrivateMouseButton(SDL_PRESSED, SDL_BUTTON_LEFT, pos[0], pos[1]);
-    	}
-    	moveEvent.pending = 0;
-    	touching = 1;
+        SDL_PrivateMultiMouseButton(contactId, SDL_PRESSED, SDL_BUTTON_LEFT, pos[0], pos[1]);
     } else if (type == SCREEN_EVENT_MTOUCH_RELEASE) {
-    	if (touching) {
-    		SDL_PrivateMouseMotion(SDL_BUTTON_LEFT, 0, pos[0], pos[1]);
-    		SDL_PrivateMouseButton(SDL_RELEASED, SDL_BUTTON_LEFT, pos[0], pos[1]);
-    	} else {
-    		SDL_PrivateMouseMotion(0, 0, pos[0], pos[1]);
-    	}
-    	moveEvent.pending = 0;
-    	touching = 0;
+        SDL_PrivateMultiMouseButton(contactId, SDL_RELEASED, SDL_BUTTON_LEFT, pos[0], pos[1]);
     } else if (type == SCREEN_EVENT_MTOUCH_MOVE) {
-    	moveEvent.pending = 1;
-    	moveEvent.touching = touching;
-    	moveEvent.pos[0] = pos[0];
-    	moveEvent.pos[1] = pos[1];
-    	//SDL_PrivateMouseMotion((touching?SDL_BUTTON_LEFT:0), 0, pos[0], pos[1]);
+        SDL_PrivateMultiMouseMotion(contactId, SDL_BUTTON_LEFT, 0, pos[0], pos[1]);
     }
 
     // TODO: Possibly need more complicated touch handling
@@ -696,7 +740,9 @@ void handleNavigatorEvent(_THIS, bps_event_t *event)
 	}
 		break;
 	case NAVIGATOR_SWIPE_DOWN:
-		tco_swipedown(_priv->emu_context, _priv->screenWindow);
+		if (_priv->tcoControlsDir) {
+			tco_swipedown(_priv->emu_context, _priv->screenWindow);
+		}
 		break;
 	case NAVIGATOR_SWIPE_START:
 		//fprintf(stderr, "Swipe start\n");
@@ -760,7 +806,11 @@ void handleScreenEvent(_THIS, bps_event_t *event)
 		case SCREEN_EVENT_MTOUCH_TOUCH:
 		case SCREEN_EVENT_MTOUCH_MOVE:
 		case SCREEN_EVENT_MTOUCH_RELEASE:
-			tco_touch(this->hidden->emu_context, se);
+			if (_priv->tcoControlsDir) {
+				tco_touch(this->hidden->emu_context, se);
+			} else {
+				handleMtouchEvent(se, window, type);
+			}
 			break;
 	}
 }
@@ -836,11 +886,6 @@ PLAYBOOK_PumpEvents(_THIS)
 		state.pending[1] = 0;
 	}
 #endif
-	if (moveEvent.pending) {
-		SDL_PrivateMouseMotion((moveEvent.touching?SDL_BUTTON_LEFT:0), 0, moveEvent.pos[0], moveEvent.pos[1]);
-		moveEvent.pending = 0;
-	}
-
 }
 
 void PLAYBOOK_InitOSKeymap(_THIS)

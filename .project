@@ -3,7 +3,6 @@
 	<name>SDL12</name>
 	<comment></comment>
 	<projects>
-		<project>TouchControlOverlay</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
@@ -62,12 +61,16 @@
 			<arguments>
 			</arguments>
 		</buildCommand>
+		<buildCommand>
+			<name>com.qnx.tools.bbt.xml.core.bbtXMLValidationBuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
 	</buildSpec>
 	<natures>
 		<nature>org.eclipse.cdt.core.cnature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 		<nature>com.qnx.tools.ide.bbt.core.bbtnature</nature>
-		<nature>org.eclipse.cdt.core.ccnature</nature>
 	</natures>
 </projectDescription>

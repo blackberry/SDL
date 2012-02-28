@@ -39,6 +39,7 @@ struct SDL_PrivateVideoData {
     int w, h;
     void *buffer;
     void *emu_context;
+    char *tcoControlsDir;
     screen_context_t screenContext;
     screen_event_t screenEvent;
     screen_window_t screenWindow;
@@ -46,10 +47,11 @@ struct SDL_PrivateVideoData {
     SDL_Surface *surface;
     void* pixels;
     int pitch;
+    int eventYOffset;
 
     SDL_Rect *SDL_modelist[SDL_NUMMODES+1];
 
-    // For 8bit video driver
+    // For 8bit video driver and OpenGL windows
     struct {
     	void *eglDisplay;
     	void *eglContext;
