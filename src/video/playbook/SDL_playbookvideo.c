@@ -150,32 +150,28 @@ int PLAYBOOK_8Bit_VideoInit(_THIS, SDL_PixelFormat *vformat)
 int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 {
 	int i;
-	int res = 0xDEADBEEF; // Workaround apparent compiler bug. In release mode, this function does not return 0.
-	int *result = &res;
-	screen_display_t displays[1] = {0};
+	screen_display_t *displays = 0;
+	int displayCount = 0;
 	int screenResolution[2];
 
 	int rc = screen_create_context(&_priv->screenContext, 0);
 	if (rc) {
 		SDL_SetError("Cannot create screen context: %s", strerror(errno));
-		*result = -1;
-		goto end;
+		return -1;
 	}
 
 	rc = screen_create_event(&_priv->screenEvent);
 	if (rc) {
 		SDL_SetError("Cannot create event object: %s", strerror(errno));
 		screen_destroy_context(_priv->screenContext);
-		*result = -1;
-		goto end;
+		return -1;
 	}
 
 	if (BPS_SUCCESS != bps_initialize()) {
 		SDL_SetError("Cannot initialize BPS library: %s", strerror(errno));
 		screen_destroy_event(_priv->screenEvent);
 		screen_destroy_context(_priv->screenContext);
-		*result = -1;
-		goto end;
+		return -1;
 	}
 
 	if (BPS_SUCCESS != navigator_rotation_lock(true)) {
@@ -183,8 +179,7 @@ int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 		bps_shutdown();
 		screen_destroy_event(_priv->screenEvent);
 		screen_destroy_context(_priv->screenContext);
-		*result = -1;
-		goto end;
+		return -1;
 	}
 
 	if (BPS_SUCCESS != navigator_request_events(0)) {
@@ -192,8 +187,7 @@ int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 		bps_shutdown();
 		screen_destroy_event(_priv->screenEvent);
 		screen_destroy_context(_priv->screenContext);
-		*result = -1;
-		goto end;
+		return -1;
 	}
 
 	if (BPS_SUCCESS != screen_request_events(_priv->screenContext)) {
@@ -201,31 +195,52 @@ int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 		bps_shutdown();
 		screen_destroy_event(_priv->screenEvent);
 		screen_destroy_context(_priv->screenContext);
-		*result = -1;
-		goto end;
+		return -1;
 	}
 
-	rc = screen_get_context_property_pv(_priv->screenContext, SCREEN_PROPERTY_DISPLAYS, (void**)&displays);
-	if (rc) {
+	rc = screen_get_context_property_iv(_priv->screenContext, SCREEN_PROPERTY_DISPLAY_COUNT, &displayCount);
+	if (rc || displayCount <= 0) {
+		SDL_SetError("Cannot get display count: %s", strerror(errno));
+		screen_stop_events(_priv->screenContext);
+		screen_destroy_event(_priv->screenEvent);
+		screen_destroy_context(_priv->screenContext);
+		bps_shutdown();
+		return -1;
+	}
+
+	displays = SDL_malloc(displayCount * sizeof(screen_display_t));
+	if (!displays) {
 		SDL_SetError("Cannot get current display: %s", strerror(errno));
 		screen_stop_events(_priv->screenContext);
 		screen_destroy_event(_priv->screenEvent);
 		screen_destroy_context(_priv->screenContext);
 		bps_shutdown();
-		*result = -1;
-		goto end;
+		return -1;
+	}
+
+	rc = screen_get_context_property_pv(_priv->screenContext, SCREEN_PROPERTY_DISPLAYS, (void**)displays);
+	if (rc) {
+		SDL_SetError("Cannot get current display: %s", strerror(errno));
+		SDL_free(displays);
+		screen_stop_events(_priv->screenContext);
+		screen_destroy_event(_priv->screenEvent);
+		screen_destroy_context(_priv->screenContext);
+		bps_shutdown();
+		return -1;
 	}
 
 	rc = screen_get_display_property_iv(displays[0], SCREEN_PROPERTY_NATIVE_RESOLUTION, screenResolution);
 	if (rc) {
 		SDL_SetError("Cannot get native resolution: %s", strerror(errno));
+		SDL_free(displays);
 		screen_stop_events(_priv->screenContext);
 		screen_destroy_event(_priv->screenEvent);
 		screen_destroy_context(_priv->screenContext);
 		bps_shutdown();
-		*result = -1;
-		goto end;
+		return -1;
 	}
+
+	SDL_free(displays);
 
 	_priv->screenWindow = 0;
 	_priv->surface = 0;
@@ -263,9 +278,7 @@ int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 	this->info.current_h = screenResolution[1];
 
 	/* We're done! */
-	*result = 0;
-end:
-	return *result;
+	return 0;
 }
 
 SDL_Rect **PLAYBOOK_ListModes(_THIS, SDL_PixelFormat *format, Uint32 flags)
