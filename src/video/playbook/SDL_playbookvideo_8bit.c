@@ -396,7 +396,10 @@ SDL_Surface *PLAYBOOK_8Bit_SetVideoMode(_THIS, SDL_Surface *current,
 			goto error5;
 		}
 
-		initializeOverlay(this, screenWindow);
+		locateTCOControlFile(this);
+		if (_priv->tcoControlsDir) {
+			initializeOverlay(this, screenWindow);
+		}
 
 		_priv->screenWindow = screenWindow;
 	} else {
