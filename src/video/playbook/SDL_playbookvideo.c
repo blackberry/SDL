@@ -448,6 +448,17 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 		return NULL;
 	}
 
+	int angle = 0;
+	char *orientation = getenv("ORIENTATION");
+	if (orientation) {
+		 angle = atoi(orientation);
+	}
+	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_ROTATION, &angle);
+	if (rc) {
+		SDL_SetError("Cannot set window rotation: %s", strerror(errno));
+		return NULL;
+	}
+
 	int bufferCount = 1; // FIXME: (flags & SDL_DOUBLEBUF)?2:1; - Currently double-buffered surfaces are slow!
 	rc = screen_create_window_buffers(screenWindow, bufferCount);
 	if (rc) {

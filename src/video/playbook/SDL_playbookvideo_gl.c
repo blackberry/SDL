@@ -148,6 +148,17 @@ SDL_Surface *PLAYBOOK_SetVideoMode_GL(_THIS, SDL_Surface *current,
 		goto error4;
 	}
 
+	int angle = 0;
+	char *orientation = getenv("ORIENTATION");
+	if (orientation) {
+		 angle = atoi(orientation);
+	}
+	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_ROTATION, &angle);
+	if (rc) {
+		SDL_SetError("Cannot set window rotation: %s", strerror(errno));
+		goto error4;
+	}
+
 	rc = screen_create_window_buffers(screenWindow, 2);
 	if (rc) {
 		SDL_SetError("Cannot create window buffers: %s", strerror(errno));
