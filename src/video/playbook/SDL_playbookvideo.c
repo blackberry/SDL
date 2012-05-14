@@ -48,6 +48,8 @@
 #include <bps/orientation.h>
 #include <bps/navigator.h>
 
+#include <EGL/egl.h>
+
 #include "touchcontroloverlay.h"
 #include <unistd.h>
 #include <time.h>
@@ -65,6 +67,23 @@
 #include <errno.h>
 #include <stdio.h>
 #include <math.h>
+
+/*
+ * The following will make major differences in how the content is laid out on the screen.
+ * Most of these have only really been tested with the 1024x600 PlayBook screen.
+ *
+ * __STRETCHED__ will stretch arbitrary resolutions onto the full screen, distorting if needed.
+ * __STRETCH_PRESERVE_ASPECT__ will stretch uniformly until one dimension is the screen dimension,
+ *    and letterbox with black in the other dimension.
+ * __NOSCALE__ will center a window of the correct resolution in the middle of the full screen.
+ *
+ * __STRETCH_PRESERVE_ASPECT__ is the default.
+ * You should leave only one of these options uncommented.
+ */
+
+#define __STRETCH_PRESERVE_ASPECT__ 1
+//#define __STRETCHED__ 1
+//#define __NOSCALE__ 1
 
 #define PLAYBOOKVID_DRIVER_NAME "playbook"
 
@@ -240,6 +259,172 @@ int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 		return -1;
 	}
 
+	rc = screen_create_window(&_priv->mainWindow, _priv->screenContext);
+	if (rc) {
+		SDL_SetError("Cannot create main application window: %s", strerror(errno));
+		SDL_free(displays);
+		screen_stop_events(_priv->screenContext);
+		screen_destroy_event(_priv->screenEvent);
+		screen_destroy_context(_priv->screenContext);
+		bps_shutdown();
+		return -1;
+	}
+
+	char groupName[256];
+	snprintf(groupName, 256, "SDL-window-%d", getpid());
+	rc = screen_create_window_group(_priv->mainWindow, groupName);
+	if (rc) {
+		SDL_SetError("Cannot create main window group: %s", strerror(errno));
+		screen_destroy_window(_priv->mainWindow);
+		SDL_free(displays);
+		screen_stop_events(_priv->screenContext);
+		screen_destroy_event(_priv->screenEvent);
+		screen_destroy_context(_priv->screenContext);
+		bps_shutdown();
+		return -1;
+	}
+
+	rc = screen_set_window_property_iv(_priv->mainWindow, SCREEN_PROPERTY_SIZE, screenResolution);
+	if (rc) {
+		SDL_SetError("Cannot set application window size: %s", strerror(errno));
+		screen_destroy_window(_priv->mainWindow);
+		SDL_free(displays);
+		screen_stop_events(_priv->screenContext);
+		screen_destroy_event(_priv->screenEvent);
+		screen_destroy_context(_priv->screenContext);
+		bps_shutdown();
+		return -1;
+	}
+
+	rc = screen_set_window_property_iv(_priv->mainWindow, SCREEN_PROPERTY_BUFFER_SIZE, screenResolution);
+	if (rc) {
+		SDL_SetError("Cannot set application window buffer size: %s", strerror(errno));
+		screen_destroy_window(_priv->mainWindow);
+		SDL_free(displays);
+		screen_stop_events(_priv->screenContext);
+		screen_destroy_event(_priv->screenEvent);
+		screen_destroy_context(_priv->screenContext);
+		bps_shutdown();
+		return -1;
+	}
+
+	int format = SCREEN_FORMAT_RGBX8888;
+	rc = screen_set_window_property_iv(_priv->mainWindow, SCREEN_PROPERTY_FORMAT, &format);
+	if (rc) {
+		SDL_SetError("Cannot set application window format: %s", strerror(errno));
+		screen_destroy_window(_priv->mainWindow);
+		SDL_free(displays);
+		screen_stop_events(_priv->screenContext);
+		screen_destroy_event(_priv->screenEvent);
+		screen_destroy_context(_priv->screenContext);
+		bps_shutdown();
+		return -1;
+	}
+
+	int usage = SCREEN_USAGE_NATIVE | SCREEN_USAGE_READ | SCREEN_USAGE_WRITE;
+	rc = screen_set_window_property_iv(_priv->mainWindow, SCREEN_PROPERTY_USAGE, &usage);
+	if (rc) {
+		SDL_SetError("Cannot set application window usage: %s", strerror(errno));
+		screen_destroy_window(_priv->mainWindow);
+		SDL_free(displays);
+		screen_stop_events(_priv->screenContext);
+		screen_destroy_event(_priv->screenEvent);
+		screen_destroy_context(_priv->screenContext);
+		bps_shutdown();
+		return -1;
+	}
+
+	int angle = 0;
+	char *orientation = getenv("ORIENTATION");
+	if (orientation) {
+		 angle = atoi(orientation);
+	}
+	rc = screen_set_window_property_iv(_priv->mainWindow, SCREEN_PROPERTY_ROTATION, &angle);
+	if (rc) {
+		SDL_SetError("Cannot set application window rotation: %s", strerror(errno));
+		screen_destroy_window(_priv->mainWindow);
+		SDL_free(displays);
+		screen_stop_events(_priv->screenContext);
+		screen_destroy_event(_priv->screenEvent);
+		screen_destroy_context(_priv->screenContext);
+		bps_shutdown();
+		return -1;
+	}
+
+	rc = screen_create_window_buffers(_priv->mainWindow, 1);
+	if (rc) {
+		SDL_SetError("Cannot create application window buffer: %s", strerror(errno));
+		screen_destroy_window(_priv->mainWindow);
+		SDL_free(displays);
+		screen_stop_events(_priv->screenContext);
+		screen_destroy_event(_priv->screenEvent);
+		screen_destroy_context(_priv->screenContext);
+		bps_shutdown();
+		return -1;
+	}
+
+	screen_buffer_t windowBuffer[1];
+	rc = screen_get_window_property_pv(_priv->mainWindow,
+				SCREEN_PROPERTY_RENDER_BUFFERS, (void**)&windowBuffer);
+	if (rc) {
+		SDL_SetError("Cannot retrieve application window buffer: %s", strerror(errno));
+		screen_destroy_window_buffers(_priv->mainWindow);
+		screen_destroy_window(_priv->mainWindow);
+		SDL_free(displays);
+		screen_stop_events(_priv->screenContext);
+		screen_destroy_event(_priv->screenEvent);
+		screen_destroy_context(_priv->screenContext);
+		bps_shutdown();
+		return -1;
+	}
+
+	int attribs[] = {SCREEN_BLIT_DESTINATION_X, 0,
+					SCREEN_BLIT_DESTINATION_Y, 0,
+					SCREEN_BLIT_DESTINATION_WIDTH, screenResolution[0],
+					SCREEN_BLIT_DESTINATION_HEIGHT, screenResolution[1],
+					SCREEN_BLIT_COLOR, 0xff000000,
+					SCREEN_BLIT_END};
+	rc = screen_fill(_priv->screenContext, windowBuffer[0], attribs);
+	if (rc) {
+		SDL_SetError("Cannot fill application window: %s", strerror(errno));
+		screen_destroy_window_buffers(_priv->mainWindow);
+		screen_destroy_window(_priv->mainWindow);
+		SDL_free(displays);
+		screen_stop_events(_priv->screenContext);
+		screen_destroy_event(_priv->screenEvent);
+		screen_destroy_context(_priv->screenContext);
+		bps_shutdown();
+		return -1;
+	}
+
+	rc = screen_get_window_property_pv(_priv->mainWindow,
+					SCREEN_PROPERTY_RENDER_BUFFERS, (void**)&windowBuffer);
+	if (rc) {
+		SDL_SetError("Cannot retrieve application window buffer: %s", strerror(errno));
+		screen_destroy_window_buffers(_priv->mainWindow);
+		screen_destroy_window(_priv->mainWindow);
+		SDL_free(displays);
+		screen_stop_events(_priv->screenContext);
+		screen_destroy_event(_priv->screenEvent);
+		screen_destroy_context(_priv->screenContext);
+		bps_shutdown();
+		return -1;
+	}
+
+	int rect[4] = {0, 0, screenResolution[0], screenResolution[1]};
+	rc = screen_post_window(_priv->mainWindow, windowBuffer[0], 1, rect, 0);
+	if (rc) {
+		SDL_SetError("Cannot post application window: %s", strerror(errno));
+		screen_destroy_window_buffers(_priv->mainWindow);
+		screen_destroy_window(_priv->mainWindow);
+		SDL_free(displays);
+		screen_stop_events(_priv->screenContext);
+		screen_destroy_event(_priv->screenEvent);
+		screen_destroy_context(_priv->screenContext);
+		bps_shutdown();
+		return -1;
+	}
+
 	SDL_free(displays);
 
 	_priv->screenWindow = 0;
@@ -295,38 +480,29 @@ screen_window_t PLAYBOOK_CreateWindow(_THIS, SDL_Surface *current,
 {
 	screen_window_t screenWindow;
 	int rc = 0;
-	int position[2] = {0, 0};
 	int idle_mode = SCREEN_IDLE_MODE_KEEP_AWAKE; // TODO: Handle idle gracefully?
 
-	if (!_priv->screenWindow) {
-		char groupName[256];
-
-		rc = screen_create_window(&screenWindow, _priv->screenContext);
-		if (rc) {
-			SDL_SetError("Cannot create window: %s", strerror(errno));
-			return NULL;
-		}
-
-		snprintf(groupName, 256, "sdl-%dx%dx%d-%u", width, height, bpp, time(NULL));
-		rc = screen_create_window_group(screenWindow, groupName);
-		if (rc) {
-			SDL_SetError("Cannot set window group: %s", strerror(errno));
-			screen_destroy_window(screenWindow);
-			return NULL;
-		}
-	} else {
+	if (_priv->screenWindow) {
 		if (current->hwdata)
 			SDL_free(current->hwdata);
 		if (_priv->tcoControlsDir) {
 			tco_shutdown(_priv->emu_context);
 		}
 		screen_destroy_window_buffers(_priv->screenWindow);
-		screenWindow = _priv->screenWindow;
+		screen_destroy_window(_priv->screenWindow);
 	}
 
-	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_POSITION, position);
+	rc = screen_create_window_type(&screenWindow, _priv->screenContext, SCREEN_CHILD_WINDOW);
 	if (rc) {
-		SDL_SetError("Cannot position window: %s", strerror(errno));
+		SDL_SetError("Cannot create window: %s", strerror(errno));
+		return NULL;
+	}
+
+	char groupName[256];
+	snprintf(groupName, 256, "SDL-window-%d", getpid());
+	rc = screen_join_window_group(screenWindow, groupName);
+	if (rc) {
+		SDL_SetError("Cannot join window group: %s", strerror(errno));
 		screen_destroy_window(screenWindow);
 		return NULL;
 	}
@@ -339,6 +515,70 @@ screen_window_t PLAYBOOK_CreateWindow(_THIS, SDL_Surface *current,
 	}
 
 	return screenWindow;
+}
+
+static int SetupStretch(_THIS, screen_window_t screenWindow, int width, int height)
+{
+	int hwResolution[2];
+
+	int rc = screen_get_window_property_iv(_priv->mainWindow, SCREEN_PROPERTY_SIZE, hwResolution);
+	if (rc) {
+		SDL_SetError("Cannot get resolution: %s", strerror(errno));
+		return -1;
+	}
+
+#ifdef __STRETCH_PRESERVE_ASPECT__
+	float hwRatio, appRatio;
+	hwRatio = (float)hwResolution[0]/(float)hwResolution[1];
+	appRatio = (float)width/(float)height;
+
+	double newResolution[2];
+	if(hwRatio > appRatio){
+		newResolution[0] = ((double)width) * ((double)hwResolution[1]) / ((double)height);
+		newResolution[1] = (double)hwResolution[1];
+	} else {
+		newResolution[0] = (double)hwResolution[0];
+		newResolution[1] = ((double)height) * ((double)hwResolution[0]) / ((double)width);
+	}
+
+	int sizeOfWindow[2];
+	sizeOfWindow[0] = (int)(ceil(newResolution[0]));
+	sizeOfWindow[1] = (int)(ceil(newResolution[1]));
+
+	int position[2] = {ceil((hwResolution[0]-sizeOfWindow[0])/2), ceil((hwResolution[1]-sizeOfWindow[1])/2)};
+	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_POSITION, position);
+	if (rc) {
+		SDL_SetError("Cannot position window: %s", strerror(errno));
+		return -1;
+	}
+#elif defined(__STRETCHED__)
+	int sizeOfWindow[2] = {hwResolution[0], hwResolution[1]};
+#elif defined(__NOSCALE__)
+	int sizeOfWindow[2] = {width, height};
+	int position[2] = {ceil((hwResolution[0]-sizeOfWindow[0])/2), ceil((hwResolution[1]-sizeOfWindow[1])/2)};
+	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_POSITION, position);
+	if (rc) {
+		SDL_SetError("Cannot position window: %s", strerror(errno));
+		return -1;
+	}
+#else
+#error "Please specify a stretch mode in SDL_playbookvideo.c"
+#endif
+
+	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_SIZE, sizeOfWindow);
+	if (rc) {
+		SDL_SetError("Cannot resize window: %s", strerror(errno));
+		return -1;
+	}
+
+	int sizeOfBuffer[2] = {width, height};
+
+	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_BUFFER_SIZE, sizeOfBuffer);
+	if (rc) {
+		SDL_SetError("Cannot resize window buffer: %s", strerror(errno));
+		return -1;
+	}
+	return 0;
 }
 
 SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
@@ -359,61 +599,8 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 	int rc;
 	int format = 0;
 
-
-#ifdef __STRETCHED__
-
-	int sizeOfWindow[2];
-	rc = screen_get_window_property_iv(screenWindow, SCREEN_PROPERTY_SIZE, sizeOfWindow);
-		if (rc) {
-			SDL_SetError("Cannot get resolution: %s", strerror(errno));
-			screen_destroy_window(screenWindow);
-			return NULL;
-		}
-#else
-	int hwResolution[2];
-
-	rc = screen_get_window_property_iv(screenWindow, SCREEN_PROPERTY_SIZE, hwResolution);
+	rc = SetupStretch(this, screenWindow, width, height);
 	if (rc) {
-		SDL_SetError("Cannot get resolution: %s", strerror(errno));
-		screen_destroy_window(screenWindow);
-		return NULL;
-	}
-
-	float hwRatio, appRatio;
-	hwRatio = (float)hwResolution[0]/(float)hwResolution[1];
-	appRatio = (float)width/(float)height;
-
-//	int sizeOfWindow[2] = {816, 478};
-	double newResolution[2];
-	if(hwRatio > appRatio){
-		newResolution[0] = ((double)height / ((double)hwResolution[1] / (double)hwResolution[0]));
-		newResolution[1] = (double)height;
-	}else{
-		newResolution[0] = (double)width;
-		newResolution[1] = (((double)hwResolution[1] / (double)hwResolution[0]) * (double)width);
-	}
-
-	int sizeOfWindow[2];
-	sizeOfWindow[0] = (int)(ceil(newResolution[0]));
-	sizeOfWindow[1] = (int)(ceil(newResolution[1]));
-#endif
-
-	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_SIZE, sizeOfWindow);
-	if (rc) {
-		SDL_SetError("Cannot resize window: %s", strerror(errno));
-		screen_destroy_window(screenWindow);
-		return NULL;
-	}
-
-#ifdef __STRETCHED__
-	int sizeOfBuffer[2] = {width, height};
-#else
-	int sizeOfBuffer[2] = {sizeOfWindow[0], sizeOfWindow[1]};
-#endif
-
-	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_BUFFER_SIZE, sizeOfBuffer);
-	if (rc) {
-		SDL_SetError("Cannot resize window buffer: %s", strerror(errno));
 		screen_destroy_window(screenWindow);
 		return NULL;
 	}
@@ -507,13 +694,8 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 	current->flags &= ~SDL_RESIZABLE; /* no resize for Direct Context */
 	current->flags |= SDL_FULLSCREEN;
 	current->flags |= SDL_HWSURFACE;
-#ifdef __STRETCHED__
 	current->w = width;
 	current->h = height;
-#else
-	current->w = sizeOfWindow[0];
-	current->h = sizeOfWindow[1];
-#endif
 	current->pitch = _priv->pitch;
 	current->pixels = _priv->pixels;
 	_priv->surface = current;
