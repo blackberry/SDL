@@ -43,6 +43,7 @@ struct SDL_PrivateVideoData {
     screen_context_t screenContext;
     screen_event_t screenEvent;
     screen_window_t screenWindow;
+    screen_window_t mainWindow;
     screen_buffer_t frontBuffer;
     SDL_Surface *surface;
     void* pixels;
