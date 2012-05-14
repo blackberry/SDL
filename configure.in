@@ -395,6 +395,17 @@ AS_HELP_STRING([--enable-alsa-shared],[dynamically load ALSA audio support [[def
     fi
 }
 
+dnl See if TouchControlOverlay is supported
+CheckTouchControlOverlay()
+{
+    AC_CHECK_HEADER(touchcontroloverlay.h, [
+        AC_CHECK_LIB(TouchControlOverlay, tco_initialize,
+        [enable_touchcontroloverlay=yes;
+         EXTRA_LDFLAGS="$LIBS -lTouchControlOverlay"],
+        [enable_touchcontroloverlay=no])
+    ], [enable_touchcontroloverlay=no])
+}
+
 dnl Check whether we want to use IRIX 6.5+ native audio or not
 CheckDMEDIA()
 {
@@ -2440,6 +2451,7 @@ case "$host" in
         CheckDummyVideo
         CheckDiskAudio
         CheckDummyAudio
+        CheckTouchControlOverlay
         # CheckNASM
         CheckDLOPEN
         CheckNAS
@@ -2844,6 +2856,12 @@ if test x$have_loadso != xyes; then
 fi
 if test x$SDLMAIN_SOURCES = x; then
     SDLMAIN_SOURCES="$srcdir/src/main/dummy/*.c"
+fi
+
+if [[[ "$CPPFLAGS" == *"PLAYBOOK"* ]]]; then
+    if test x$enable_touchcontroloverlay = xno; then
+        AC_MSG_ERROR("TouchControlOverlay (https://github.com/blackberry/TouchControlOverlay) is required on playbook")
+    fi
 fi
 
 OBJECTS=`echo $SOURCES | sed 's,[[^ ]]*/\([[^ ]]*\)\.asm,$(objects)/\1.lo,g'`
