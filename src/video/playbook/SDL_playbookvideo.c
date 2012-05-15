@@ -68,23 +68,6 @@
 #include <stdio.h>
 #include <math.h>
 
-/*
- * The following will make major differences in how the content is laid out on the screen.
- * Most of these have only really been tested with the 1024x600 PlayBook screen.
- *
- * __STRETCHED__ will stretch arbitrary resolutions onto the full screen, distorting if needed.
- * __STRETCH_PRESERVE_ASPECT__ will stretch uniformly until one dimension is the screen dimension,
- *    and letterbox with black in the other dimension.
- * __NOSCALE__ will center a window of the correct resolution in the middle of the full screen.
- *
- * __STRETCH_PRESERVE_ASPECT__ is the default.
- * You should leave only one of these options uncommented.
- */
-
-#define __STRETCH_PRESERVE_ASPECT__ 1
-//#define __STRETCHED__ 1
-//#define __NOSCALE__ 1
-
 #define PLAYBOOKVID_DRIVER_NAME "playbook"
 
 static int PLAYBOOK_Available(void)
@@ -517,7 +500,7 @@ screen_window_t PLAYBOOK_CreateWindow(_THIS, SDL_Surface *current,
 	return screenWindow;
 }
 
-static int SetupStretch(_THIS, screen_window_t screenWindow, int width, int height)
+int PLAYBOOK_SetupStretch(_THIS, screen_window_t screenWindow, int width, int height)
 {
 	int hwResolution[2];
 
@@ -599,7 +582,7 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 	int rc;
 	int format = 0;
 
-	rc = SetupStretch(this, screenWindow, width, height);
+	rc = PLAYBOOK_SetupStretch(this, screenWindow, width, height);
 	if (rc) {
 		screen_destroy_window(screenWindow);
 		return NULL;
