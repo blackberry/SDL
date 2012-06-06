@@ -229,7 +229,7 @@ int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 		return -1;
 	}
 
-	rc = screen_get_display_property_iv(displays[0], SCREEN_PROPERTY_NATIVE_RESOLUTION, screenResolution);
+	rc = screen_get_display_property_iv(displays[0], SCREEN_PROPERTY_SIZE, screenResolution);
 	if (rc) {
 		SDL_SetError("Cannot get native resolution: %s", strerror(errno));
 		SDL_free(displays);
