@@ -38,6 +38,7 @@
 
 #include "SDL_video.h"
 #include "SDL_mouse.h"
+#include "SDL_syswm.h"
 #include "../SDL_sysvideo.h"
 #include "../SDL_pixels_c.h"
 #include "../../events/SDL_events_c.h"
@@ -113,7 +114,7 @@ static SDL_VideoDevice *PLAYBOOK_CreateDevice(int devindex)
 	device->SetIcon = NULL;
 	device->IconifyWindow = NULL;
 	device->GrabInput = NULL;
-	device->GetWMInfo = NULL;
+	device->GetWMInfo = PLAYBOOK_GetWMInfo;
 	device->InitOSKeymap = PLAYBOOK_InitOSKeymap;
 	device->PumpEvents = PLAYBOOK_PumpEvents;
 
@@ -145,6 +146,19 @@ int PLAYBOOK_8Bit_VideoInit(_THIS, SDL_PixelFormat *vformat)
 		this->info.hw_available = 0;
 	}
 	return 0;
+}
+
+int PLAYBOOK_GetWMInfo(_THIS, SDL_SysWMinfo *info)
+{
+	if ( info->version.major <= SDL_MAJOR_VERSION ) {
+		info->window = _priv->screenWindow;
+		info->context = _priv->screenContext;
+		return(1);
+	} else {
+		SDL_SetError("Application not compiled with SDL %d.%d\n",
+					SDL_MAJOR_VERSION, SDL_MINOR_VERSION);
+		return(-1);
+	}
 }
 
 int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)

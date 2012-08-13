@@ -15,6 +15,7 @@
 #include <screen/screen.h>
 
 /* Initialization/Query functions */
+extern int PLAYBOOK_GetWMInfo(_THIS, SDL_SysWMinfo *info);
 extern int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat);
 extern SDL_Rect **PLAYBOOK_ListModes(_THIS, SDL_PixelFormat *format, Uint32 flags);
 extern screen_window_t PLAYBOOK_CreateWindow();
