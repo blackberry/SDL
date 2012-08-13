@@ -267,6 +267,13 @@ int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 		_priv->SDL_modelist[i]->x = _priv->SDL_modelist[i]->y = 0;
 	}
 
+	/* HACK: We only support landscape. */
+	if (screenResolution[0] < screenResolution[1]) {
+		int temp = screenResolution[0];
+		screenResolution[0] = screenResolution[1];
+		screenResolution[1] = temp;
+	}
+
 	/* Modes sorted largest to smallest */
 	_priv->SDL_modelist[0]->w = screenResolution[0]; _priv->SDL_modelist[0]->h = screenResolution[1];
 	_priv->SDL_modelist[1]->w = 800; _priv->SDL_modelist[1]->h = 576;
