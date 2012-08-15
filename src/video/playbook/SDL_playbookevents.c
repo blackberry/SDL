@@ -799,7 +799,7 @@ void handleScreenEvent(_THIS, bps_event_t *event)
 	switch (type)
 	{
 		case SCREEN_EVENT_CLOSE:
-			SDL_PrivateQuit(); // We can't stop it from closing anyway
+			// Do nothing.
 			break;
 		case SCREEN_EVENT_PROPERTY:
 			{
