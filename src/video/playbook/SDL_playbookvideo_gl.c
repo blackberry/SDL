@@ -122,6 +122,14 @@ SDL_Surface *PLAYBOOK_SetVideoMode_GL(_THIS, SDL_Surface *current,
 		goto error3;
 	}
 
+
+	if (getenv ("FORCE_PORTRAIT") != NULL) {
+		int cache = sizeOfWindow[0];
+		sizeOfWindow[0] = sizeOfWindow[1];
+		sizeOfWindow[1] = cache;
+	}
+
+
 	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_SIZE, sizeOfWindow);
 	if (rc) {
 		SDL_SetError("Cannot resize window: %s", strerror(errno));

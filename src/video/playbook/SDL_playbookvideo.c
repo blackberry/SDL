@@ -365,6 +365,13 @@ screen_window_t PLAYBOOK_CreateWindow(_THIS, SDL_Surface *current,
 SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 				int width, int height, int bpp, Uint32 flags)
 {
+
+	if (getenv ("FORCE_PORTRAIT") != NULL) {
+		int cache = width;
+		width = height;
+		height = cache;
+	}
+
 //	fprintf(stderr, "SetVideoMode: %dx%d %dbpp\n", width, height, bpp);
 	if (width == 640 && height == 400) {
 		_priv->eventYOffset = 40;
@@ -404,9 +411,9 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 	hwRatio = (float)hwResolution[0]/(float)hwResolution[1];
 	appRatio = (float)width/(float)height;
 
-//	int sizeOfWindow[2] = {816, 478};
+	//int sizeOfWindow[2] = {600, 1204};
 	double newResolution[2];
-	if(hwRatio > appRatio){
+	if(hwRatio < appRatio){
 		newResolution[0] = ((double)height / ((double)hwResolution[1] / (double)hwResolution[0]));
 		newResolution[1] = (double)height;
 	}else{
