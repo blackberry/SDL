@@ -413,7 +413,7 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 
 	//int sizeOfWindow[2] = {600, 1204};
 	double newResolution[2];
-	if(hwRatio < appRatio){
+	if(hwRatio > appRatio){
 		newResolution[0] = ((double)height / ((double)hwResolution[1] / (double)hwResolution[0]));
 		newResolution[1] = (double)height;
 	}else{
