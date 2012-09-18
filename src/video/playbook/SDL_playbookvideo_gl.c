@@ -74,7 +74,7 @@ SDL_Surface *PLAYBOOK_SetVideoMode_GL(_THIS, SDL_Surface *current,
 	EGLint configCount;
 	screen_window_t screenWindow;
 	int format = SCREEN_FORMAT_RGBX8888;
-	int sizeOfWindow[2] = {1024, 600};
+	int sizeOfWindow[2] = {this->info.current_w, this->info.current_h};
 	int sizeOfBuffer[2] = {width, height};
 	int usage = SCREEN_USAGE_OPENGL_ES1;
 	EGLint eglSurfaceAttributes[3] = { EGL_RENDER_BUFFER, EGL_BACK_BUFFER, EGL_NONE };
