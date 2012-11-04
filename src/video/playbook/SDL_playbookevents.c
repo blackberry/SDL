@@ -19,6 +19,7 @@
     Sam Lantinga
     slouken@libsdl.org
 */
+#include "SDL_syswm.h"
 #include "SDL_config.h"
 #include "SDL.h"
 #include "../../events/SDL_sysevents.h"
@@ -710,6 +711,14 @@ static void handleMtouchEvent(screen_event_t event, screen_window_t window, int 
 #endif
 }
 
+void handleCustomEvent(_THIS, bps_event_t *event)
+{
+	SDL_SysWMmsg wmmsg;
+	SDL_VERSION(&wmmsg.version);
+	wmmsg.event = event;
+	SDL_PrivateSysWMEvent(&wmmsg);
+}
+
 void handleNavigatorEvent(_THIS, bps_event_t *event)
 {
 	switch (bps_event_get_code(event))
@@ -841,6 +850,9 @@ PLAYBOOK_PumpEvents(_THIS)
 		}
 		else if (domain == screen_get_domain()) {
 			handleScreenEvent(this, event);
+		}
+		else {
+			handleCustomEvent(this, event);
 		}
 
 		bps_get_event(&event, 0);
