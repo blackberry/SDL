@@ -502,7 +502,7 @@ screen_window_t PLAYBOOK_CreateWindow(_THIS, SDL_Surface *current,
 {
 	screen_window_t screenWindow;
 	int rc = 0;
-	int idle_mode = SCREEN_IDLE_MODE_KEEP_AWAKE; // TODO: Handle idle gracefully?
+	int idle_mode = getenv("SCREEN_IDLE_NORMAL") != NULL ? SCREEN_IDLE_MODE_NORMAL : SCREEN_IDLE_MODE_KEEP_AWAKE;
 
 	if (_priv->screenWindow) {
 		if (current->hwdata)
