@@ -36,6 +36,8 @@
 #include <bps/navigator.h>
 #include "touchcontroloverlay.h"
 
+#include <errno.h>
+
 #define SDLK_PB_TILDE 160 // Conflicts with SDLK_WORLD_0.
 static SDL_keysym Playbook_Keycodes[256];
 static SDLKey *Playbook_specialsyms;
@@ -721,6 +723,7 @@ void handleCustomEvent(_THIS, bps_event_t *event)
 
 void handleNavigatorEvent(_THIS, bps_event_t *event)
 {
+	int rc, angle;
 	switch (bps_event_get_code(event))
 	{
 	case NAVIGATOR_INVOKE:
@@ -773,9 +776,30 @@ void handleNavigatorEvent(_THIS, bps_event_t *event)
 		break;
 	case NAVIGATOR_ORIENTATION_CHECK:
 		//fprintf(stderr, "Orientation check\n");
+		navigator_orientation_check_response(event, getenv("AUTO_ORIENTATION") != NULL ? true : false);
 		break;
 	case NAVIGATOR_ORIENTATION:
 		//fprintf(stderr, "Navigator orientation\n");
+		angle = navigator_event_get_orientation_angle(event);
+
+		int angle_diff = abs(angle - _priv->angle);
+		int newsize[2] = {_priv->w, _priv->h};
+
+		if(angle_diff == 90 || angle_diff == 270){
+			/* flip */
+			newsize[0] = _priv->h;
+			newsize[1] = _priv->w;
+		}
+
+		rc  = screen_set_window_property_iv(_priv->mainWindow, SCREEN_PROPERTY_ROTATION, &angle);
+		rc |= screen_set_window_property_iv(_priv->mainWindow, SCREEN_PROPERTY_SIZE, newsize);
+		rc |= screen_set_window_property_iv(_priv->mainWindow, SCREEN_PROPERTY_SOURCE_SIZE, newsize);
+		if(rc){
+			SDL_SetError("Could not set mainWindow size or rotation: %s\n", strerror(errno));
+		}
+
+		SDL_PrivateResize(newsize[0], newsize[1]);
+		navigator_done_orientation(event);
 		break;
 	case NAVIGATOR_BACK:
 		//fprintf(stderr, "Navigator back\n");
