@@ -166,6 +166,7 @@ int PLAYBOOK_GetWMInfo(_THIS, SDL_SysWMinfo *info)
 	if ( info->version.major <= SDL_MAJOR_VERSION ) {
 		info->window = _priv->screenWindow;
 		info->context = _priv->screenContext;
+		info->mainWindow = _priv->mainWindow;
 		return(1);
 	} else {
 		SDL_SetError("Application not compiled with SDL %d.%d\n",
@@ -697,7 +698,7 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 
 	locateTCOControlFile(this);
 	if (_priv->tcoControlsDir) {
-		initializeOverlay(this, screenWindow);	
+		initializeOverlay(this, screenWindow);
 	}
 
 	_priv->frontBuffer = windowBuffer[0];
