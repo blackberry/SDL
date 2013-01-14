@@ -36,7 +36,7 @@
 /* Private display data */
 
 struct SDL_PrivateVideoData {
-    int w, h;
+    int w, h, angle;
     void *buffer;
     void *emu_context;
     char *tcoControlsDir;

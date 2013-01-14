@@ -202,7 +202,7 @@ int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 		return -1;
 	}
 
-	if (BPS_SUCCESS != navigator_rotation_lock(true)) {
+	if (BPS_SUCCESS != navigator_rotation_lock(getenv("AUTO_ORIENTATION") != NULL ? false : true)) {
 		SDL_SetError("Cannot set rotation lock: %s", strerror(errno));
 		bps_shutdown();
 		screen_destroy_event(_priv->screenEvent);
@@ -336,6 +336,9 @@ int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 	}
 
 	int usage = SCREEN_USAGE_NATIVE | SCREEN_USAGE_READ | SCREEN_USAGE_WRITE;
+	if(getenv("AUTO_ORIENTATION") != NULL){
+		usage |= SCREEN_USAGE_ROTATION;
+	}
 	rc = screen_set_window_property_iv(_priv->mainWindow, SCREEN_PROPERTY_USAGE, &usage);
 	if (rc) {
 		SDL_SetError("Cannot set application window usage: %s", strerror(errno));
@@ -511,8 +514,28 @@ screen_window_t PLAYBOOK_CreateWindow(_THIS, SDL_Surface *current,
 		if (_priv->tcoControlsDir) {
 			tco_shutdown(_priv->emu_context);
 		}
-		screen_destroy_window_buffers(_priv->screenWindow);
-		screen_destroy_window(_priv->screenWindow);
+		int zorder = 0, setzorder = -1;
+		do {
+			/* Before we destroy the active screenWindow, send it to the back.
+			 * This also allows us to busy wait for the windowing system
+			 * to finish up whatever it is doing. If we do not busy wait,
+			 * then the new window we create may not actually work right
+			 * and may not have the right properties set. Ideally there is a
+			 * better way than busy wait, but I don't know what it is.
+			 */
+			rc = screen_set_window_property_iv(_priv->screenWindow, SCREEN_PROPERTY_ZORDER, &setzorder);
+			if (rc) {
+				SDL_SetError("Cannot set ZORDER window: %s\n", strerror(errno));
+			}
+			rc = screen_get_window_property_iv(_priv->screenWindow, SCREEN_PROPERTY_ZORDER, &zorder);
+			if (rc) {
+				SDL_SetError("Cannot get ZORDER window: %s\n", strerror(errno));
+			}
+			usleep(50);
+		} while (rc != 0 && (errno == EAGAIN || errno == EBUSY) && zorder != -1);
+
+		rc = screen_destroy_window_buffers(_priv->screenWindow);
+		rc = screen_destroy_window(_priv->screenWindow);
 	}
 
 	rc = screen_create_window_type(&screenWindow, _priv->screenContext, SCREEN_CHILD_WINDOW);
@@ -662,6 +685,9 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 	}
 
 	int usage = SCREEN_USAGE_NATIVE | SCREEN_USAGE_READ | SCREEN_USAGE_WRITE; // FIXME: GL needs other usage
+	if(getenv("AUTO_ORIENTATION") != NULL){
+		usage |= SCREEN_USAGE_ROTATION;
+	}
 	rc = screen_set_window_property_iv(screenWindow, SCREEN_PROPERTY_USAGE, &usage);
 	if (rc) {
 		SDL_SetError("Cannot set window usage: %s", strerror(errno));
@@ -696,6 +722,14 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 		return NULL;
 	}
 
+	int angle;
+	rc = screen_get_window_property_iv(_priv->mainWindow,
+	    SCREEN_PROPERTY_ROTATION, &angle);
+	if (rc) {
+		SDL_SetError("Cannot get rotation: %s", strerror(errno));
+		return NULL;
+	}
+
 	locateTCOControlFile(this);
 	if (_priv->tcoControlsDir) {
 		initializeOverlay(this, screenWindow);
@@ -703,6 +737,9 @@ SDL_Surface *PLAYBOOK_SetVideoMode(_THIS, SDL_Surface *current,
 
 	_priv->frontBuffer = windowBuffer[0];
 	_priv->screenWindow = screenWindow;
+	_priv->w = width;
+	_priv->h = height;
+	_priv->angle = angle;
 
 	current->hwdata = SDL_malloc(sizeof(struct private_hwdata));
 	current->hwdata->pixmap = 0;
