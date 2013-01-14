@@ -752,17 +752,17 @@ void handleNavigatorEvent(_THIS, bps_event_t *event)
 		if (_priv->tcoControlsDir) {
 			tco_swipedown(_priv->emu_context, _priv->screenWindow);
 		} else {
-			SDL_Event event;
+			SDL_Event sdl_event;
 			SDL_UserEvent userevent;
 
 			userevent.type = SDL_USEREVENT;
 			userevent.code = 0;
 			userevent.data1 = NULL;
 			userevent.data2 = NULL;
-			event.type = SDL_USEREVENT;
-			event.user = userevent;
+			sdl_event.type = SDL_USEREVENT;
+			sdl_event.user = userevent;
 
-			SDL_PushEvent(&event);
+			SDL_PushEvent(&sdl_event);
 		}
 		break;
 	case NAVIGATOR_SWIPE_START:
