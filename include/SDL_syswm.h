@@ -89,7 +89,7 @@ typedef struct SDL_SysWMinfo {
 	    	Display *display;	/**< The X11 display */
 	    	Window window;		/**< The X11 display window */
 		/** These locking functions should be called around
-                 *  any X11 functions using the display variable, 
+                 *  any X11 functions using the display variable,
                  *  but not the gfxdisplay variable.
                  *  They lock the event thread, so should not be
 		 *  called around event functions or from event filters.
@@ -195,6 +195,7 @@ typedef struct SDL_SysWMinfo {
 	SDL_version version;
 	screen_context_t context;
 	screen_window_t window;
+	screen_window_t mainWindow;
 } SDL_SysWMinfo;
 
 #else
@@ -220,7 +221,7 @@ typedef struct SDL_SysWMinfo {
  * This function gives you custom hooks into the window manager information.
  * It fills the structure pointed to by 'info' with custom information and
  * returns 1 if the function is implemented.  If it's not implemented, or
- * the version member of the 'info' structure is invalid, it returns 0. 
+ * the version member of the 'info' structure is invalid, it returns 0.
  *
  * You typically use this function like this:
  * @code
