@@ -273,6 +273,20 @@ int PLAYBOOK_VideoInit(_THIS, SDL_PixelFormat *vformat)
 		}
 	}
 
+	// FIXME: Bad hack for PlayBook to avoid rotation issues.
+	if (screenResolution[0] == 600 && screenResolution[1] == 1024) {
+		int angle = 0;
+		char *orientation = getenv("ORIENTATION");
+		if (orientation) {
+			 fprintf(stderr, "Received orientation: %s\n", orientation);
+			 angle = atoi(orientation);
+			 if (angle == 0) {
+				 screenResolution[0] = 1024;
+				 screenResolution[1] = 600;
+			 }
+		}
+	}
+
 	rc = screen_create_window(&_priv->mainWindow, _priv->screenContext);
 	if (rc) {
 		SDL_SetError("Cannot create main application window: %s", strerror(errno));

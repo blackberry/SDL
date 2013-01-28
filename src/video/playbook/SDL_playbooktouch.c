@@ -220,6 +220,7 @@ void locateTCOControlFile(_THIS)
     if (fd) {
         _priv->tcoControlsDir = SDL_malloc(strlen(fullPath) - strlen(filename) + 1);
         strncpy(_priv->tcoControlsDir, fullPath, strlen(fullPath) - strlen(filename));
+        _priv->tcoControlsDir[strlen(fullPath)-strlen(filename)] = '\0';
         fclose(fd);
     } else {
         sprintf(fullPath, "%s/../app/native/%s", homeDir, filename);
@@ -227,6 +228,7 @@ void locateTCOControlFile(_THIS)
         if (fd) {
             _priv->tcoControlsDir = SDL_malloc(strlen(fullPath) - strlen(filename) + 1);
             strncpy(_priv->tcoControlsDir, fullPath, strlen(fullPath) - strlen(filename));
+            _priv->tcoControlsDir[strlen(fullPath)-strlen(filename)] = '\0';
             fclose(fd);
         } else {
             _priv->tcoControlsDir = 0; // Use SDL multi-mouse controls.
