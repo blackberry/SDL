@@ -81,6 +81,7 @@ SDL_Surface *PLAYBOOK_SetVideoMode_GL(_THIS, SDL_Surface *current,
 
 	if (this->gl_config.major_version == 2) {
 		contextAttributes[1] = 2;
+		attributes[11] = EGL_OPENGL_ES2_BIT;
 		usage = SCREEN_USAGE_OPENGL_ES2;
 	}
 
