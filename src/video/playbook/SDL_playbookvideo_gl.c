@@ -79,6 +79,11 @@ SDL_Surface *PLAYBOOK_SetVideoMode_GL(_THIS, SDL_Surface *current,
 	int usage = SCREEN_USAGE_OPENGL_ES1;
 	EGLint eglSurfaceAttributes[3] = { EGL_RENDER_BUFFER, EGL_BACK_BUFFER, EGL_NONE };
 
+	if (this->gl_config.major_version == 2) {
+		contextAttributes[1] = 2;
+		usage = SCREEN_USAGE_OPENGL_ES2;
+	}
+
 	if (getenv("WIDTH") != NULL && getenv("HEIGHT") != NULL) {
 		sizeOfWindow[0] = atoi(getenv("WIDTH"));
 		sizeOfWindow[1] = atoi(getenv("HEIGHT"));
