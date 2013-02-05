@@ -875,9 +875,9 @@ PLAYBOOK_PumpEvents(_THIS)
 		else if (domain == screen_get_domain()) {
 			handleScreenEvent(this, event);
 		}
-		else {
-			handleCustomEvent(this, event);
-		}
+
+		// post SDL_SYSWMEVENT event containing the bps event pointer
+		handleCustomEvent(this, event);
 
 		bps_get_event(&event, 0);
 	}
