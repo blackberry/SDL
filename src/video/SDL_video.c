@@ -1495,6 +1495,12 @@ int SDL_GL_SetAttribute( SDL_GLattr attr, int value )
 		case SDL_GL_ACCELERATED_VISUAL:
 			video->gl_config.accelerated = value;
 			break;
+		case SDL_GL_CONTEXT_MAJOR_VERSION:
+			video->gl_config.major_version = value;
+			break;
+		case SDL_GL_CONTEXT_MINOR_VERSION:
+			video->gl_config.minor_version = value;
+			break;
 		case SDL_GL_SWAP_CONTROL:
 			video->gl_config.swap_control = value;
 			break;
