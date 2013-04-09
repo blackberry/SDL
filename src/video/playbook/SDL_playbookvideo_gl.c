@@ -19,7 +19,7 @@
 #include <bps/orientation.h>
 #include <bps/navigator.h>
 
-#include "touchcontroloverlay.h"
+#include "tco/tco.h"
 
 #include "SDL_playbookvideo_c.h"
 #include "SDL_playbookvideo_gl_c.h"

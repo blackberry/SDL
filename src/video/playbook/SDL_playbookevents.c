@@ -34,7 +34,7 @@
 #include <bps/event.h>
 #include <bps/orientation.h>
 #include <bps/navigator.h>
-#include "touchcontroloverlay.h"
+#include "tco/tco.h"
 
 #include <errno.h>
 

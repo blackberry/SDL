@@ -51,7 +51,7 @@
 
 #include <EGL/egl.h>
 
-#include "touchcontroloverlay.h"
+#include "tco/tco.h"
 #include <unistd.h>
 #include <time.h>
 

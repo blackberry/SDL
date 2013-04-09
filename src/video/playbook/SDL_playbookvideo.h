@@ -26,6 +26,7 @@
 
 #include "../SDL_sysvideo.h"
 #include <screen/screen.h>
+#include "tco/tco.h"
 
 /* Hidden "this" pointer for the video functions */
 #define _THIS	SDL_VideoDevice *this
@@ -38,7 +39,7 @@
 struct SDL_PrivateVideoData {
     int w, h, angle;
     void *buffer;
-    void *emu_context;
+    tco_context_t emu_context;
     char *tcoControlsDir;
     screen_context_t screenContext;
     screen_event_t screenEvent;

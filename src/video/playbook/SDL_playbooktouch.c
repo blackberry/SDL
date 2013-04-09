@@ -13,8 +13,10 @@
 #include "../SDL_pixels_c.h"
 #include "../../events/SDL_events_c.h"
 
-#include "touchcontroloverlay.h"
+#include "tco/tco.h"
 #include "SDL_playbookvideo.h"
+
+#include <unistd.h>
 
 int handleKey(int sym, int mod, int scancode, uint16_t unicode, int event)
 {
@@ -216,7 +218,7 @@ void locateTCOControlFile(_THIS)
     char *homeDir = SDL_getenv("HOME");
     char fullPath[512];
     sprintf(fullPath, "%s/../%s", homeDir, filename);
-    int fd = fopen(fullPath, "r");
+    FILE *fd = fopen(fullPath, "r");
     if (fd) {
         _priv->tcoControlsDir = SDL_malloc(strlen(fullPath) - strlen(filename) + 1);
         strncpy(_priv->tcoControlsDir, fullPath, strlen(fullPath) - strlen(filename));
@@ -240,7 +242,7 @@ void initializeOverlay(_THIS, screen_window_t screenWindow)
 {
 	int loaded = 0;
 	const char *filename = "sdl-controls.xml";
-	struct tco_callbacks callbacks = {
+	tco_callbacks callbacks = {
 		handleKey, handleDPad, handleTouch, handleMouseButton, handleTap, handleTouchScreen
 	};
 
@@ -264,10 +266,10 @@ void initializeOverlay(_THIS, screen_window_t screenWindow)
 	// Clean up and set flags
 	SDL_free(_priv->tcoControlsDir);
 	if (loaded) {
-		_priv->tcoControlsDir = 1;
+		_priv->tcoControlsDir = (char *)1;
 		tco_showlabels(_priv->emu_context, screenWindow);
 	} else {
-		tco_shutdown(&_priv->emu_context);
-		_priv->tcoControlsDir = 0;
+		tco_shutdown(_priv->emu_context);
+		_priv->tcoControlsDir = (char *)0;
 	}
 }
