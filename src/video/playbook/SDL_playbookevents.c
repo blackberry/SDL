@@ -604,13 +604,11 @@ static void handleMtouchEvent(screen_event_t event, screen_window_t window, int 
     screen_get_event_property_llv(event, SCREEN_PROPERTY_TIMESTAMP, (long long*)&timestamp);
     screen_get_event_property_iv(event, SCREEN_PROPERTY_SEQUENCE_ID, (int*)&sequenceId);
 
-    if (pos[1] < 0) {
-    	fprintf(stderr, "Detected swipe event: %d,%d\n", pos[0], pos[1]);
-    	return;
-    }
     if (type == SCREEN_EVENT_MTOUCH_TOUCH) {
+    	SDL_PrivateMultiMouseMotion(contactId, 0, 0, pos[0], pos[1]);
         SDL_PrivateMultiMouseButton(contactId, SDL_PRESSED, SDL_BUTTON_LEFT, pos[0], pos[1]);
     } else if (type == SCREEN_EVENT_MTOUCH_RELEASE) {
+    	SDL_PrivateMultiMouseMotion(contactId, SDL_BUTTON_LEFT, 0, pos[0], pos[1]);
         SDL_PrivateMultiMouseButton(contactId, SDL_RELEASED, SDL_BUTTON_LEFT, pos[0], pos[1]);
     } else if (type == SCREEN_EVENT_MTOUCH_MOVE) {
         SDL_PrivateMultiMouseMotion(contactId, SDL_BUTTON_LEFT, 0, pos[0], pos[1]);

@@ -49,7 +49,7 @@ int tco_img_loadfile(const char *filename, unsigned *width, unsigned *height, sc
 
 	memset(&img, 0, sizeof(img));
 	img.flags |= IMG_FORMAT;
-	img.format = IMG_FMT_PKLE_ABGR8888;
+	img.format = IMG_FMT_PKLE_ARGB8888;
 
 	memset(&callouts, 0, sizeof(callouts));
 	callouts.setup_f = decode_setup;
