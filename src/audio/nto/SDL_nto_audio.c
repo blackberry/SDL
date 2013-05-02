@@ -45,9 +45,9 @@
 #define DEFAULT_CPARAMS_RATE 22050
 #define DEFAULT_CPARAMS_VOICES 1
 /* FIXME: need to add in the near future flexible logic with frag_size and frags count */
-#define DEFAULT_CPARAMS_FRAG_SIZE 4096
+#define DEFAULT_CPARAMS_FRAG_SIZE 2048
 #define DEFAULT_CPARAMS_FRAGS_MIN 1
-#define DEFAULT_CPARAMS_FRAGS_MAX 1
+#define DEFAULT_CPARAMS_FRAGS_MAX 4
 
 /* Open the audio device for playback, and don't block if busy */
 #define OPEN_FLAGS SND_PCM_OPEN_PLAYBACK
